@@ -1,0 +1,13 @@
+<resources>
+	<string name="app_name">Notify Forwarder</string>
+	<string name="service_name">Notification Forwarder</string>
+	<string name="status_unknown">Доступ к уведомлениям: неизвестно</string>
+	<string name="status_enabled">Доступ к уведомлениям: ВКЛЮЧЕН</string>
+	<string name="status_disabled">Доступ к уведомлениям: ВЫКЛЮЧЕН</string>
+	<string name="open_access_settings">Открыть доступ</string>
+	<string name="send_test_notification">Тест уведомление</string>
+	<string name="select_apps_hint">Выберите приложения, уведомления которых отправлять на платформу:</string>
+	<string name="refresh">Обновить</string>
+</resources>
+
+

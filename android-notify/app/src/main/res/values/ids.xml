@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<item name="toolbar" type="id" />
+	<item name="appsRecycler" type="id" />
+	<item name="tvStatus" type="id" />
+	<item name="btnOpenNotifAccess" type="id" />
+	<item name="btnTestPost" type="id" />
+	<item name="appIcon" type="id" />
+	<item name="appTitle" type="id" />
+	<item name="appPackage" type="id" />
+	<item name="appCheck" type="id" />
+</resources>
+
+

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+	<exclude domain="sharedpref" path="excluded_prefs.xml" />
+	<include domain="sharedpref" path="notify_forwarder_prefs.xml" />
+	<include domain="database" path="." />
+</full-backup-content>
+
+
