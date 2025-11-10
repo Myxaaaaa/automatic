@@ -39,6 +39,7 @@ class AppListAdapter(
 		holder.binding.appIcon.setImageDrawable(app.icon)
 		holder.binding.appTitle.text = app.label
 		holder.binding.appPackage.text = app.packageName
+		holder.binding.appCheck.setOnCheckedChangeListener(null)
 		holder.binding.appCheck.isChecked = selected.contains(app.packageName)
 		holder.binding.appCheck.setOnCheckedChangeListener { _, isChecked ->
 			if (isChecked) selected.add(app.packageName) else selected.remove(app.packageName)

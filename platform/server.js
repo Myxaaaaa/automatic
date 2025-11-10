@@ -19,42 +19,55 @@ app.use(morgan('dev'))
 const PORT = process.env.PORT || 3001
 const SECRET = process.env.SECRET || 'test-secret'
 const AUTO_REJECT_MINUTES = parseInt(process.env.AUTO_REJECT_MINUTES || '15', 10)
+const DEFAULT_PAYMENT_TEMPLATE = process.env.DEFAULT_PAYMENT_TEMPLATE || 'https://mbank.example/pay?account={accountNumber}&amount={amount}&deal={dealId}'
 
 // In-memory stores
 const deals = new Map()
-const timers = new Map()
 const devices = new Map()
-let idSeq = 1
+const accounts = new Map()
+const timers = new Map()
+
+let dealSeq = 1
+let accountSeq = 1
 
 function nowIso() {
 	return new Date().toISOString()
 }
 
-function normalizeAmount(v) {
-	return String(v || '').replace(/\s+/g, '')
+function normalizeAmount(value) {
+	return String(value || '').replace(/\s+/g, '')
 }
 
-function normalizeAccount(v) {
-	return String(v || '').trim()
+function normalizeText(value) {
+	return String(value || '').trim()
 }
 
-function upsertDevice({ id, account, source }) {
-	if (!id) return null
-	const existing = devices.get(id) || {
-		id,
-		registeredAt: nowIso()
-	}
-	const updated = {
-		...existing,
-		account: account || existing.account || null,
-		lastSeen: nowIso(),
-		source: source || existing.source || 'unknown'
-	}
-	devices.set(id, updated)
-	return updated
+function encodeAmountForLink(amount) {
+	const normalized = normalizeAmount(amount).replace(',', '.')
+	return encodeURIComponent(normalized)
 }
 
-// Auto-reject deals after 15 minutes
+function composeAccountLabel(account) {
+	const tail = account.number ? `••${String(account.number).slice(-4)}` : null
+	return [account.name, account.bank, tail].filter(Boolean).join(' · ') || account.id
+}
+
+function attachAccountInfo(entity, account) {
+	if (!account) return
+	entity.accountId = account.id
+	entity.accountLabel = account.label
+	entity.accountName = account.name
+	entity.accountNumber = account.number
+}
+
+function buildPaymentLink(account, amount, dealId) {
+	const template = account.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE
+	return template
+		.replace(/\{amount\}/g, encodeAmountForLink(amount))
+		.replace(/\{dealId\}/g, encodeURIComponent(dealId))
+		.replace(/\{accountNumber\}/g, encodeURIComponent(account.number || ''))
+}
+
 function scheduleAutoReject(dealId) {
 	if (timers.has(dealId)) {
 		clearTimeout(timers.get(dealId))
@@ -65,14 +78,14 @@ function scheduleAutoReject(dealId) {
 			deal.status = 'rejected'
 			deal.rejectedAt = nowIso()
 			deal.reason = 'timeout'
-			timers.delete(dealId)
-			console.log(`Deal ${dealId} auto-rejected after ${AUTO_REJECT_MINUTES} minutes`)
+			deal.statusLabel = 'Отклонено (таймаут)'
+			deal.statusColor = 'error'
+			deals.set(dealId, deal)
 		}
 	}, AUTO_REJECT_MINUTES * 60 * 1000)
 	timers.set(dealId, timer)
 }
 
-// Cancel auto-reject timer
 function cancelAutoReject(dealId) {
 	if (timers.has(dealId)) {
 		clearTimeout(timers.get(dealId))
@@ -80,56 +93,172 @@ function cancelAutoReject(dealId) {
 	}
 }
 
-// Serve web interface
+function upsertDevice({ id, label, accountId, accountLabel, source, markActivated }) {
+	if (!id) return null
+	const existing = devices.get(id) || {
+		id,
+		registeredAt: nowIso()
+	}
+	const updated = {
+		...existing,
+		label: label || existing.label || id,
+		lastSeen: nowIso(),
+		source: source || existing.source || 'manual'
+	}
+
+	if (accountId && accounts.has(accountId)) {
+		const account = accounts.get(accountId)
+		attachAccountInfo(updated, account)
+	} else if (accountLabel) {
+		updated.accountLabel = accountLabel
+	}
+
+	if (markActivated) {
+		updated.activatedAt = existing.activatedAt || nowIso()
+	}
+
+	devices.set(id, updated)
+	return updated
+}
+
+function serializeDevice(device) {
+	return {
+		...device,
+		status: device.activatedAt ? 'active' : 'pending'
+	}
+}
+
+function serializeDeal(deal) {
+	return {
+		...deal
+	}
+}
+
+// Serve UI
 app.get('/', (req, res) => {
 	res.sendFile(join(__dirname, 'public', 'index.html'))
 })
 
-// API: Get all deals
-app.get('/api/deals', (req, res) => {
-	res.json({ ok: true, deals: Array.from(deals.values()) })
+app.get('/api/config', (req, res) => {
+	const endpoint = `${req.protocol}://${req.get('host')}/notify`
+	res.json({
+		ok: true,
+		endpoint,
+		secret: SECRET,
+		autoRejectMinutes: AUTO_REJECT_MINUTES
+	})
 })
 
-// API: Get devices
-app.get('/api/devices', (req, res) => {
-	res.json({ ok: true, devices: Array.from(devices.values()) })
+app.get('/api/accounts', (req, res) => {
+	res.json({ ok: true, accounts: Array.from(accounts.values()) })
 })
 
-// API: Create / update device manually
-app.post('/api/device', (req, res) => {
-	const deviceId = String(req.body?.deviceId || '').trim()
-	if (!deviceId) {
-		return res.status(400).json({ error: 'deviceId required' })
-}
-	const account = normalizeAccount(req.body?.account || '')
-	const device = upsertDevice({ id: deviceId, account, source: 'manual' })
-	res.json(device)
-})
+app.post('/api/account', (req, res) => {
+	const name = normalizeText(req.body?.name)
+	const bank = normalizeText(req.body?.bank)
+	const number = normalizeText(req.body?.number)
+	const paymentTemplate = normalizeText(req.body?.paymentTemplate) || DEFAULT_PAYMENT_TEMPLATE
 
-// API: Create new deal
-app.post('/api/deal', (req, res) => {
-	const amount = String(req.body?.amount || '').trim()
-	if (!amount) return res.status(400).json({ error: 'amount required' })
-	const deviceId = String(req.body?.deviceId || '').trim()
-	let account = normalizeAccount(req.body?.account || '')
-	if (!account && deviceId && devices.has(deviceId)) {
-		account = devices.get(deviceId).account || ''
+	if (!name) {
+		return res.status(400).json({ error: 'Название реквизита обязательно' })
 	}
-	const id = String(idSeq++)
+
+	const id = String(accountSeq++)
+	const account = {
+		id,
+		name,
+		bank,
+		number,
+		paymentTemplate,
+		createdAt: nowIso()
+	}
+	account.label = composeAccountLabel(account)
+	accounts.set(id, account)
+	res.json(account)
+})
+
+app.get('/api/devices', (req, res) => {
+	res.json({ ok: true, devices: Array.from(devices.values()).map(serializeDevice) })
+})
+
+app.post('/api/device', (req, res) => {
+	const id = normalizeText(req.body?.deviceId)
+	const label = normalizeText(req.body?.label)
+	const accountId = normalizeText(req.body?.accountId)
+	if (!id) {
+		return res.status(400).json({ error: 'deviceId required' })
+	}
+	let accountLabel
+	if (accountId && accounts.has(accountId)) {
+		accountLabel = accounts.get(accountId).label
+	}
+	const device = upsertDevice({ id, label, accountId, accountLabel, source: 'manual' })
+	res.json(serializeDevice(device))
+})
+
+app.post('/api/device/:id/activate', (req, res) => {
+	const { id } = req.params
+	if (!devices.has(id)) return res.status(404).json({ error: 'device not found' })
+	const device = devices.get(id)
+	device.activatedAt = device.activatedAt || nowIso()
+	devices.set(id, device)
+	res.json(serializeDevice(device))
+})
+
+app.post('/api/device/:id/account', (req, res) => {
+	const { id } = req.params
+	const accountId = normalizeText(req.body?.accountId)
+	if (!devices.has(id)) return res.status(404).json({ error: 'device not found' })
+	if (!accounts.has(accountId)) return res.status(400).json({ error: 'account not found' })
+	const device = devices.get(id)
+	const account = accounts.get(accountId)
+	attachAccountInfo(device, account)
+	devices.set(id, device)
+	res.json(serializeDevice(device))
+})
+
+app.get('/api/deals', (req, res) => {
+	res.json({ ok: true, deals: Array.from(deals.values()).map(serializeDeal) })
+})
+
+app.post('/api/deal', (req, res) => {
+	const amount = normalizeText(req.body?.amount)
+	const deviceId = normalizeText(req.body?.deviceId)
+	const accountId = normalizeText(req.body?.accountId)
+
+	if (!amount) {
+		return res.status(400).json({ error: 'amount required' })
+	}
+	if (!accountId || !accounts.has(accountId)) {
+		return res.status(400).json({ error: 'accountId required' })
+	}
+
+	const account = accounts.get(accountId)
+	const id = String(dealSeq++)
 	const deal = {
 		id,
 		amount,
 		status: 'pending',
+		statusLabel: 'Ожидание',
+		statusColor: 'pending',
+		createdAt: nowIso(),
 		deviceId: deviceId || null,
-		account: account || null,
-		createdAt: nowIso()
+		paymentLink: buildPaymentLink(account, amount, id)
 	}
+	attachAccountInfo(deal, account)
+
+	if (deviceId) {
+		const device = devices.get(deviceId)
+		if (device) {
+			deal.deviceLabel = device.label
+		}
+	}
+
 	deals.set(id, deal)
 	scheduleAutoReject(id)
 	res.json(deal)
 })
 
-// API: Close deal manually
 app.post('/api/deal/:id/close', (req, res) => {
 	const { id } = req.params
 	const deal = deals.get(id)
@@ -138,13 +267,15 @@ app.post('/api/deal/:id/close', (req, res) => {
 		return res.status(400).json({ error: `deal is ${deal.status}, cannot close` })
 	}
 	deal.status = 'confirmed'
+	deal.statusLabel = 'Подтверждено вручную'
+	deal.statusColor = 'success'
 	deal.confirmedAt = nowIso()
 	deal.confirmedBy = 'manual'
+	deals.set(id, deal)
 	cancelAutoReject(id)
 	res.json(deal)
 })
 
-// API: Reject deal manually
 app.post('/api/deal/:id/reject', (req, res) => {
 	const { id } = req.params
 	const deal = deals.get(id)
@@ -153,44 +284,59 @@ app.post('/api/deal/:id/reject', (req, res) => {
 		return res.status(400).json({ error: `deal is ${deal.status}, cannot reject` })
 	}
 	deal.status = 'rejected'
+	deal.statusLabel = 'Отклонено вручную'
+	deal.statusColor = 'error'
 	deal.rejectedAt = nowIso()
-	deal.reason = req.body?.reason || 'manual'
+	deal.reason = normalizeText(req.body?.reason) || 'manual'
+	deals.set(id, deal)
 	cancelAutoReject(id)
 	res.json(deal)
 })
 
-// API: Receive notification from Android app
 app.post('/notify', (req, res) => {
 	const auth = req.get('authorization') || ''
 	if (!auth.startsWith('Bearer ') || auth.slice(7) !== SECRET) {
 		return res.status(401).json({ error: 'unauthorized' })
 	}
+
 	const { amount, text, title, package: pkg, postedAt } = req.body || {}
 	const amt = normalizeAmount(amount)
-	const deviceId = String(req.body?.deviceId || '').trim()
-	const account = normalizeAccount(req.body?.account || '')
+	const deviceId = normalizeText(req.body?.deviceId)
+	const accountLabelFromDevice = normalizeText(req.body?.account)
+
 	if (deviceId) {
-		upsertDevice({ id: deviceId, account: account || null, source: 'notify' })
+		const device = upsertDevice({
+			id: deviceId,
+			accountLabel: accountLabelFromDevice || undefined,
+			source: 'notify',
+			markActivated: true
+		})
+		devices.set(deviceId, device)
 	}
-	// Try to match pending deal by amount
+
 	let matched = null
 	for (const deal of deals.values()) {
-		if (deal.status === 'pending') {
-			const dealAmt = normalizeAmount(deal.amount)
-			const matchesDevice = !deal.deviceId || (deviceId && deal.deviceId === deviceId)
-			const matchesAccount = !deal.account || (account && normalizeAccount(deal.account) === account)
-			if (dealAmt === amt && matchesDevice && matchesAccount) {
-				deal.status = 'confirmed'
-				deal.confirmedAt = nowIso()
-				if (!deal.deviceId && deviceId) deal.deviceId = deviceId
-				if (!deal.account && account) deal.account = account
-				deal.match = { pkg, title, text, postedAt, deviceId }
-				matched = deal
-				cancelAutoReject(deal.id)
-				break
-			}
+		if (deal.status !== 'pending') continue
+		const dealAmt = normalizeAmount(deal.amount)
+		const matchesAmount = amt && dealAmt === amt
+		const matchesDevice = !deal.deviceId || (deviceId && deal.deviceId === deviceId)
+		const dealAccountLabel = normalizeText(deal.accountLabel)
+		const matchesAccount = !dealAccountLabel || (accountLabelFromDevice && normalizeText(accountLabelFromDevice) === dealAccountLabel)
+		if (matchesAmount && matchesDevice && matchesAccount) {
+			deal.status = 'confirmed'
+			deal.statusLabel = 'Подтверждено по уведомлению'
+			deal.statusColor = 'success'
+			deal.confirmedAt = nowIso()
+			deal.confirmedBy = 'notification'
+			deal.match = { pkg, title, text, postedAt, deviceId }
+			if (!deal.deviceId && deviceId) deal.deviceId = deviceId
+			matched = deal
+			deals.set(deal.id, deal)
+			cancelAutoReject(deal.id)
+			break
 		}
 	}
+
 	res.json({ received: true, matched })
 })
 
@@ -198,5 +344,3 @@ app.listen(PORT, () => {
 	console.log(`Notify platform listening on http://localhost:${PORT}`)
 	console.log(`Auto-reject timeout: ${AUTO_REJECT_MINUTES} minutes`)
 })
-
-
