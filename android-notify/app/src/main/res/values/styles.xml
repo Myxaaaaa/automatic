@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 	<style name="Theme.NotifyForwarder" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-		<item name="colorPrimary">@color/purple_500</item>
-		<item name="colorPrimaryVariant">@color/purple_700</item>
-		<item name="colorOnPrimary">@color/white</item>
-		<item name="colorSecondary">@color/teal_200</item>
+		<item name="colorPrimary">@color/rtd_gold</item>
+		<item name="colorPrimaryVariant">@color/rtd_gold_dark</item>
+		<item name="colorOnPrimary">@color/rtd_charcoal</item>
+		<item name="colorSecondary">@color/rtd_gold_light</item>
+		<item name="colorSecondaryVariant">@color/rtd_gold</item>
+		<item name="colorOnSecondary">@color/rtd_charcoal</item>
+		<item name="android:statusBarColor">@android:color/transparent</item>
+		<item name="android:navigationBarColor">@android:color/transparent</item>
 	</style>
 </resources>
 

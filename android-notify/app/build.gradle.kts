@@ -1,6 +1,7 @@
 plugins {
 	id("com.android.application")
 	kotlin("android")
+	id("kotlin-kapt")
 }
 
 android {
@@ -32,6 +33,7 @@ android {
 
 	buildFeatures {
 		viewBinding = true
+		dataBinding = false
 	}
 
 	compileOptions {
@@ -50,6 +52,15 @@ dependencies {
 	implementation("androidx.activity:activity-ktx:1.9.3")
 	implementation("androidx.recyclerview:recyclerview:1.3.2")
 	implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
+	implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
+	implementation("androidx.fragment:fragment-ktx:1.7.1")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+	// Room database for logs
+	implementation("androidx.room:room-runtime:2.6.1")
+	implementation("androidx.room:room-ktx:2.6.1")
+	kapt("androidx.room:room-compiler:2.6.1")
 
 	implementation("com.squareup.okhttp3:okhttp:4.12.0")
 	implementation("com.squareup.moshi:moshi:1.15.1")

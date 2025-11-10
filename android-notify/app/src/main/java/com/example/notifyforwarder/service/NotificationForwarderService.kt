@@ -11,13 +11,19 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.notifyforwarder.prefs.AppPreferences
 import com.example.notifyforwarder.net.HttpClient
+import com.example.notifyforwarder.data.AppDatabase
+import com.example.notifyforwarder.data.NotificationLog
 import org.json.JSONObject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.regex.Pattern
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import java.util.UUID
 
 class NotificationForwarderService : NotificationListenerService() {
 
@@ -44,11 +50,31 @@ class NotificationForwarderService : NotificationListenerService() {
 			put("text", text)
 			put("postedAt", iso8601(postedAtMs))
 			if (amount != null) put("amount", amount)
+			val deviceId = ensureDeviceId(this@NotificationForwarderService)
+			put("deviceId", deviceId)
+			AppPreferences.getAccountLabel(this@NotificationForwarderService)?.let {
+				put("account", it)
+			}
 		}.toString()
 		val url = AppPreferences.getEndpointUrl(this)
 		Log.d(TAG, "Forwarding to $url: $body")
+		
+		// Save log and forward
+		val database = AppDatabase.getDatabase(this)
 		Thread {
-			HttpClient.postJson(url, body, this)
+			val result = HttpClient.postJson(url, body, this)
+			CoroutineScope(Dispatchers.IO).launch {
+				val log = NotificationLog(
+					packageName = pkg,
+					title = title,
+					text = text,
+					amount = amount,
+					postedAt = postedAtMs,
+					success = result.success,
+					errorMessage = result.errorMessage
+				)
+				database.notificationLogDao().insert(log)
+			}
 		}.start()
 	}
 
@@ -73,16 +99,32 @@ class NotificationForwarderService : NotificationListenerService() {
 			// Post a local notification (Note: local notifications from this app may be filtered out by selection)
 			nm.notify(1001, notif)
 			// Также отправим тест напрямую, чтобы не зависеть от фильтрации приложений
+			val database = AppDatabase.getDatabase(context)
 			Thread {
+				val postedAt = System.currentTimeMillis()
 				val body = JSONObject().apply {
 					put("package", "com.example.notifyforwarder")
 					put("title", "Test payment")
 					put("text", "Заказ оплачен 1 234,56 ₽")
-					put("postedAt", iso8601(System.currentTimeMillis()))
+					put("postedAt", iso8601(postedAt))
 					put("amount", "1234,56")
+					put("deviceId", ensureDeviceId(context))
+					AppPreferences.getAccountLabel(context)?.let { put("account", it) }
 				}.toString()
 				val url = AppPreferences.getEndpointUrl(context)
-				HttpClient.postJson(url, body, context)
+				val result = HttpClient.postJson(url, body, context)
+				CoroutineScope(Dispatchers.IO).launch {
+					val log = NotificationLog(
+						packageName = "com.example.notifyforwarder",
+						title = "Test payment",
+						text = "Заказ оплачен 1 234,56 ₽",
+						amount = "1234,56",
+						postedAt = postedAt,
+						success = result.success,
+						errorMessage = result.errorMessage
+					)
+					database.notificationLogDao().insert(log)
+				}
 			}.start()
 		}
 
@@ -96,6 +138,13 @@ class NotificationForwarderService : NotificationListenerService() {
 				val nm = context.getSystemService(NotificationManager::class.java)
 				nm.createNotificationChannel(channel)
 			}
+		}
+
+		private fun ensureDeviceId(context: Context): String {
+			AppPreferences.getDeviceId(context)?.let { return it }
+			val generated = UUID.randomUUID().toString()
+			AppPreferences.setDeviceId(context, generated)
+			return generated
 		}
 	}
 }

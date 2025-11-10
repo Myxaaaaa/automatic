@@ -61,6 +61,16 @@ class AppListAdapter(
 		items.addAll(apps)
 		notifyDataSetChanged()
 	}
+
+	fun selectAll(select: Boolean) {
+		if (select) {
+			items.forEach { selected.add(it.packageName) }
+		} else {
+			selected.clear()
+		}
+		onSelectionChanged(selected)
+		notifyDataSetChanged()
+	}
 }
 
 

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent">
+
+	<com.google.android.material.card.MaterialCardView
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_margin="16dp"
+		app:cardCornerRadius="12dp"
+		app:cardElevation="2dp">
+
+		<LinearLayout
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:orientation="horizontal"
+			android:padding="16dp">
+
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:gravity="center"
+				android:orientation="vertical">
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Успешно"
+					android:textAppearance="?attr/textAppearanceBody2" />
+
+				<TextView
+					android:id="@+id/tvSuccessCount"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="0"
+					android:textAppearance="?attr/textAppearanceHeadline6"
+					android:textColor="?attr/colorPrimary" />
+			</LinearLayout>
+
+			<View
+				android:layout_width="1dp"
+				android:layout_height="match_parent"
+				android:background="?attr/colorOutline" />
+
+			<LinearLayout
+				android:layout_width="0dp"
+				android:layout_height="wrap_content"
+				android:layout_weight="1"
+				android:gravity="center"
+				android:orientation="vertical">
+
+				<TextView
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="Ошибки"
+					android:textAppearance="?attr/textAppearanceBody2" />
+
+				<TextView
+					android:id="@+id/tvErrorCount"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="0"
+					android:textAppearance="?attr/textAppearanceHeadline6"
+					android:textColor="@android:color/holo_red_dark" />
+			</LinearLayout>
+		</LinearLayout>
+	</com.google.android.material.card.MaterialCardView>
+
+	<androidx.recyclerview.widget.RecyclerView
+		android:id="@+id/recyclerView"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:layout_marginTop="88dp"
+		android:clipToPadding="false"
+		android:padding="8dp" />
+
+	<TextView
+		android:id="@+id/emptyView"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center"
+		android:text="Логов пока нет"
+		android:textAppearance="?attr/textAppearanceBody1"
+		android:visibility="gone" />
+
+	<com.google.android.material.floatingactionbutton.FloatingActionButton
+		android:id="@+id/btnClearLogs"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_gravity="bottom|end"
+		android:layout_margin="16dp"
+		android:src="@android:drawable/ic_menu_delete"
+		app:tint="?attr/colorOnPrimary" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+

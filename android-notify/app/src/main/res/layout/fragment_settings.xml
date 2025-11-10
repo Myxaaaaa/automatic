@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:fillViewport="true">
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:orientation="vertical"
+		android:padding="16dp">
+
+		<com.google.android.material.card.MaterialCardView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginBottom="16dp"
+			app:cardCornerRadius="12dp"
+			app:cardElevation="2dp">
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:padding="16dp">
+
+				<TextView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Статус сервиса"
+					android:textAppearance="?attr/textAppearanceHeadline6" />
+
+				<TextView
+					android:id="@+id/tvStatus"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:text="Не активирован"
+					android:textAppearance="?attr/textAppearanceBody1" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/btnOpenNotifAccess"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="16dp"
+					android:text="Открыть настройки доступа"
+					app:icon="@android:drawable/ic_menu_preferences" />
+			</LinearLayout>
+		</com.google.android.material.card.MaterialCardView>
+
+		<com.google.android.material.card.MaterialCardView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:layout_marginBottom="16dp"
+			app:cardCornerRadius="12dp"
+			app:cardElevation="2dp">
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:padding="16dp">
+
+				<TextView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Подключение"
+					android:textAppearance="?attr/textAppearanceHeadline6" />
+
+				<TextView
+					android:id="@+id/tvConnection"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:textAppearance="?attr/textAppearanceBody2" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/btnScanQr"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="16dp"
+					android:text="Сканировать QR платформы"
+					app:icon="@android:drawable/ic_menu_camera" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/btnTestPost"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:text="Отправить тестовое уведомление"
+					app:icon="@android:drawable/ic_menu_send"
+					style="@style/Widget.Material3.Button.OutlinedButton" />
+			</LinearLayout>
+		</com.google.android.material.card.MaterialCardView>
+
+		<com.google.android.material.card.MaterialCardView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			app:cardCornerRadius="12dp"
+			app:cardElevation="2dp">
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical"
+				android:padding="16dp">
+
+				<TextView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:text="Приложения"
+					android:textAppearance="?attr/textAppearanceHeadline6" />
+
+				<com.google.android.material.switchmaterial.SwitchMaterial
+					android:id="@+id/switchAllApps"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:text="Все приложения"
+					android:textAppearance="?attr/textAppearanceBody1" />
+
+				<TextView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="16dp"
+					android:text="Или выберите определенные:"
+					android:textAppearance="?attr/textAppearanceBody2"
+					android:visibility="gone" />
+
+				<androidx.recyclerview.widget.RecyclerView
+					android:id="@+id/appsRecycler"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginTop="8dp"
+					android:nestedScrollingEnabled="false" />
+			</LinearLayout>
+		</com.google.android.material.card.MaterialCardView>
+	</LinearLayout>
+</androidx.core.widget.NestedScrollView>
+

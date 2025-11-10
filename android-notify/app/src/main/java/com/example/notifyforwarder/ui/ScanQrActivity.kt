@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import com.example.notifyforwarder.prefs.AppPreferences
 import com.google.zxing.integration.android.IntentIntegrator
 import org.json.JSONObject
+import java.util.UUID
 
 class ScanQrActivity : AppCompatActivity() {
 	private val requestCamera = registerForActivityResult(
@@ -45,9 +46,16 @@ class ScanQrActivity : AppCompatActivity() {
 				val obj = JSONObject(result.contents)
 				val endpoint = obj.optString("endpoint")
 				val secret = obj.optString("secret", null)
+				val deviceId = obj.optString("deviceId", null)
+				val account = obj.optString("account", null)
 				if (endpoint.isNotBlank()) {
 					AppPreferences.setEndpointUrl(this, endpoint)
 					AppPreferences.setSecret(this, secret)
+					val resolvedDeviceId = if (!deviceId.isNullOrBlank()) deviceId else {
+						UUID.randomUUID().toString()
+					}
+					AppPreferences.setDeviceId(this, resolvedDeviceId)
+					AppPreferences.setAccountLabel(this, account)
 					Toast.makeText(this, "Платформа подключена", Toast.LENGTH_SHORT).show()
 					setResult(RESULT_OK)
 				} else {

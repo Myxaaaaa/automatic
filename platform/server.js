@@ -18,12 +18,41 @@ app.use(morgan('dev'))
 
 const PORT = process.env.PORT || 3001
 const SECRET = process.env.SECRET || 'test-secret'
-const AUTO_REJECT_MINUTES = 15
+const AUTO_REJECT_MINUTES = parseInt(process.env.AUTO_REJECT_MINUTES || '15', 10)
 
-// In-memory deals store: { id, amount, status, createdAt, timer }
+// In-memory stores
 const deals = new Map()
 const timers = new Map()
+const devices = new Map()
 let idSeq = 1
+
+function nowIso() {
+	return new Date().toISOString()
+}
+
+function normalizeAmount(v) {
+	return String(v || '').replace(/\s+/g, '')
+}
+
+function normalizeAccount(v) {
+	return String(v || '').trim()
+}
+
+function upsertDevice({ id, account, source }) {
+	if (!id) return null
+	const existing = devices.get(id) || {
+		id,
+		registeredAt: nowIso()
+	}
+	const updated = {
+		...existing,
+		account: account || existing.account || null,
+		lastSeen: nowIso(),
+		source: source || existing.source || 'unknown'
+	}
+	devices.set(id, updated)
+	return updated
+}
 
 // Auto-reject deals after 15 minutes
 function scheduleAutoReject(dealId) {
@@ -34,7 +63,7 @@ function scheduleAutoReject(dealId) {
 		const deal = deals.get(dealId)
 		if (deal && deal.status === 'pending') {
 			deal.status = 'rejected'
-			deal.rejectedAt = new Date().toISOString()
+			deal.rejectedAt = nowIso()
 			deal.reason = 'timeout'
 			timers.delete(dealId)
 			console.log(`Deal ${dealId} auto-rejected after ${AUTO_REJECT_MINUTES} minutes`)
@@ -61,16 +90,39 @@ app.get('/api/deals', (req, res) => {
 	res.json({ ok: true, deals: Array.from(deals.values()) })
 })
 
+// API: Get devices
+app.get('/api/devices', (req, res) => {
+	res.json({ ok: true, devices: Array.from(devices.values()) })
+})
+
+// API: Create / update device manually
+app.post('/api/device', (req, res) => {
+	const deviceId = String(req.body?.deviceId || '').trim()
+	if (!deviceId) {
+		return res.status(400).json({ error: 'deviceId required' })
+}
+	const account = normalizeAccount(req.body?.account || '')
+	const device = upsertDevice({ id: deviceId, account, source: 'manual' })
+	res.json(device)
+})
+
 // API: Create new deal
 app.post('/api/deal', (req, res) => {
 	const amount = String(req.body?.amount || '').trim()
 	if (!amount) return res.status(400).json({ error: 'amount required' })
+	const deviceId = String(req.body?.deviceId || '').trim()
+	let account = normalizeAccount(req.body?.account || '')
+	if (!account && deviceId && devices.has(deviceId)) {
+		account = devices.get(deviceId).account || ''
+	}
 	const id = String(idSeq++)
 	const deal = {
 		id,
 		amount,
 		status: 'pending',
-		createdAt: new Date().toISOString()
+		deviceId: deviceId || null,
+		account: account || null,
+		createdAt: nowIso()
 	}
 	deals.set(id, deal)
 	scheduleAutoReject(id)
@@ -86,7 +138,7 @@ app.post('/api/deal/:id/close', (req, res) => {
 		return res.status(400).json({ error: `deal is ${deal.status}, cannot close` })
 	}
 	deal.status = 'confirmed'
-	deal.confirmedAt = new Date().toISOString()
+	deal.confirmedAt = nowIso()
 	deal.confirmedBy = 'manual'
 	cancelAutoReject(id)
 	res.json(deal)
@@ -101,7 +153,7 @@ app.post('/api/deal/:id/reject', (req, res) => {
 		return res.status(400).json({ error: `deal is ${deal.status}, cannot reject` })
 	}
 	deal.status = 'rejected'
-	deal.rejectedAt = new Date().toISOString()
+	deal.rejectedAt = nowIso()
 	deal.reason = req.body?.reason || 'manual'
 	cancelAutoReject(id)
 	res.json(deal)
@@ -114,16 +166,25 @@ app.post('/notify', (req, res) => {
 		return res.status(401).json({ error: 'unauthorized' })
 	}
 	const { amount, text, title, package: pkg, postedAt } = req.body || {}
-	const amt = String(amount || '').replace(/\s+/g, '')
+	const amt = normalizeAmount(amount)
+	const deviceId = String(req.body?.deviceId || '').trim()
+	const account = normalizeAccount(req.body?.account || '')
+	if (deviceId) {
+		upsertDevice({ id: deviceId, account: account || null, source: 'notify' })
+	}
 	// Try to match pending deal by amount
 	let matched = null
 	for (const deal of deals.values()) {
 		if (deal.status === 'pending') {
-			const dealAmt = deal.amount.replace(/\s+/g, '')
-			if (dealAmt === amt) {
+			const dealAmt = normalizeAmount(deal.amount)
+			const matchesDevice = !deal.deviceId || (deviceId && deal.deviceId === deviceId)
+			const matchesAccount = !deal.account || (account && normalizeAccount(deal.account) === account)
+			if (dealAmt === amt && matchesDevice && matchesAccount) {
 				deal.status = 'confirmed'
-				deal.confirmedAt = new Date().toISOString()
-				deal.match = { pkg, title, text, postedAt }
+				deal.confirmedAt = nowIso()
+				if (!deal.deviceId && deviceId) deal.deviceId = deviceId
+				if (!deal.account && account) deal.account = account
+				deal.match = { pkg, title, text, postedAt, deviceId }
 				matched = deal
 				cancelAutoReject(deal.id)
 				break

@@ -1,5 +1,5 @@
 <resources>
-	<string name="app_name">Notify Forwarder</string>
+	<string name="app_name">RTD automatic</string>
 	<string name="service_name">Notification Forwarder</string>
 	<string name="status_unknown">Доступ к уведомлениям: неизвестно</string>
 	<string name="status_enabled">Доступ к уведомлениям: ВКЛЮЧЕН</string>
@@ -9,6 +9,7 @@
 	<string name="select_apps_hint">Выберите приложения, уведомления которых отправлять на платформу:</string>
 	<string name="refresh">Обновить</string>
 	<string name="scan_qr">Сканировать QR платформы</string>
+	<string name="connection_details">Endpoint: %1$s\nУстройство: %2$s\nРеквизиты: %3$s</string>
 </resources>
 
 

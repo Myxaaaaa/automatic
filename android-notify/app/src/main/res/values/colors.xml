@@ -1,11 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+	<!-- RTD Brand Colors -->
+	<color name="rtd_gold">#D4AF37</color>
+	<color name="rtd_gold_dark">#B8941F</color>
+	<color name="rtd_gold_light">#E5C866</color>
+	<color name="rtd_charcoal">#2C2C2C</color>
+	<color name="rtd_charcoal_light">#3A3A3A</color>
+	
+	<!-- Material Design Colors -->
 	<color name="purple_200">#BB86FC</color>
-	<color name="purple_500">#6200EE</color>
-	<color name="purple_700">#3700B3</color>
+	<color name="purple_500">@color/rtd_gold</color>
+	<color name="purple_700">@color/rtd_gold_dark</color>
 	<color name="teal_200">#03DAC5</color>
 	<color name="black">#000000</color>
 	<color name="white">#FFFFFF</color>
+	
+	<!-- Surface colors -->
+	<color name="surface_light">#FFFFFF</color>
+	<color name="surface_dark">#121212</color>
+	<color name="surface_variant_light">#F5F5F5</color>
+	<color name="surface_variant_dark">#1E1E1E</color>
 </resources>
 
 

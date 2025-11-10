@@ -9,6 +9,8 @@ object AppPreferences {
 	private const val KEY_SELECTED_PACKAGES = "selected_packages"
 	private const val KEY_ENDPOINT_URL = "endpoint_url"
 	private const val KEY_SECRET = "endpoint_secret"
+	private const val KEY_DEVICE_ID = "device_id"
+	private const val KEY_ACCOUNT = "account_label"
 
 	private const val DEFAULT_ENDPOINT = "https://httpbin.org/post"
 
@@ -44,6 +46,30 @@ object AppPreferences {
 		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 		prefs.edit {
 			if (secret.isNullOrBlank()) remove(KEY_SECRET) else putString(KEY_SECRET, secret)
+		}
+	}
+
+	fun getDeviceId(context: Context): String? {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		return prefs.getString(KEY_DEVICE_ID, null)
+	}
+
+	fun setDeviceId(context: Context, deviceId: String?) {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		prefs.edit {
+			if (deviceId.isNullOrBlank()) remove(KEY_DEVICE_ID) else putString(KEY_DEVICE_ID, deviceId)
+		}
+	}
+
+	fun getAccountLabel(context: Context): String? {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		return prefs.getString(KEY_ACCOUNT, null)
+	}
+
+	fun setAccountLabel(context: Context, account: String?) {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		prefs.edit {
+			if (account.isNullOrBlank()) remove(KEY_ACCOUNT) else putString(KEY_ACCOUNT, account)
 		}
 	}
 }

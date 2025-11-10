@@ -160,8 +160,34 @@
 			<label for="amount">Сумма:</label>
 			<input type="text" id="amount" placeholder="1234,56" />
 		</div>
+		<div class="form-group">
+			<label for="deviceSelect">Устройство (опционально):</label>
+			<select id="deviceSelect"></select>
+		</div>
+		<div class="form-group">
+			<label for="accountInput">Реквизиты (опционально):</label>
+			<input type="text" id="accountInput" placeholder="Карта •••• 1234" />
+			<small id="deviceInfo" style="display:block;margin-top:4px;color:#777;"></small>
+		</div>
 		<button class="btn-primary" onclick="createDeal()">Создать заявку</button>
 		<div id="createMessage"></div>
+	</div>
+
+	<div class="form-section">
+		<h2>Устройства</h2>
+		<div id="devicesContainer">Загрузка...</div>
+		<hr style="margin:15px 0;">
+		<h3 style="margin-bottom:10px;">Добавить устройство вручную</h3>
+		<div class="form-group">
+			<label for="deviceIdInput">Device ID:</label>
+			<input type="text" id="deviceIdInput" placeholder="android-device-01" />
+		</div>
+		<div class="form-group">
+			<label for="deviceAccountInput">Реквизиты (опц.):</label>
+			<input type="text" id="deviceAccountInput" placeholder="Карта •••• 1234" />
+		</div>
+		<button class="btn-success" onclick="addDevice()">Добавить устройство</button>
+		<div id="deviceMessage"></div>
 	</div>
 
 	<div class="deals-list">
@@ -171,26 +197,69 @@
 
 	<script>
 		const API_BASE = '/api'
+		let devicesCache = []
+
+		function formatDate(value) {
+			return value ? new Date(value).toLocaleString('ru-RU') : ''
+		}
+
+		function getDeviceById(id) {
+			return devicesCache.find(d => d.id === id)
+		}
 
 		// Create deal
 		async function createDeal() {
 			const amount = document.getElementById('amount').value.trim()
+			const deviceId = document.getElementById('deviceSelect').value
+			const account = document.getElementById('accountInput').value.trim()
 			const msgEl = document.getElementById('createMessage')
 			if (!amount) {
 				msgEl.innerHTML = '<div class="error">Введите сумму</div>'
 				return
 			}
+			const payload = { amount }
+			if (deviceId) payload.deviceId = deviceId
+			if (account) payload.account = account
 			try {
 				const res = await fetch(`${API_BASE}/deal`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ amount })
+					body: JSON.stringify(payload)
 				})
 				const data = await res.json()
 				if (res.ok) {
 					msgEl.innerHTML = '<div class="success">Заявка создана!</div>'
 					document.getElementById('amount').value = ''
+					if (!payload.account) document.getElementById('accountInput').value = ''
 					loadDeals()
+				} else {
+					msgEl.innerHTML = `<div class="error">Ошибка: ${data.error}</div>`
+				}
+			} catch (err) {
+				msgEl.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`
+			}
+		}
+
+		async function addDevice() {
+			const deviceId = document.getElementById('deviceIdInput').value.trim()
+			const account = document.getElementById('deviceAccountInput').value.trim()
+			const msgEl = document.getElementById('deviceMessage')
+			if (!deviceId) {
+				msgEl.innerHTML = '<div class="error">Введите deviceId</div>'
+				return
+			}
+			try {
+				const res = await fetch(`${API_BASE}/device`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ deviceId, account })
+				})
+				const data = await res.json()
+				if (res.ok) {
+					msgEl.innerHTML = '<div class="success">Устройство сохранено</div>'
+					document.getElementById('deviceIdInput').value = ''
+					document.getElementById('deviceAccountInput').value = ''
+					loadDevices()
 				} else {
 					msgEl.innerHTML = `<div class="error">Ошибка: ${data.error}</div>`
 				}
@@ -247,6 +316,78 @@
 			}
 		}
 
+		async function loadDevices() {
+			try {
+				const res = await fetch(`${API_BASE}/devices`)
+				const data = await res.json()
+				if (res.ok) {
+					devicesCache = data.devices || []
+					renderDevices(devicesCache)
+					populateDeviceSelect(devicesCache)
+				}
+			} catch (err) {
+				document.getElementById('devicesContainer').innerHTML = `<div class="error">Ошибка загрузки: ${err.message}</div>`
+			}
+		}
+
+		function populateDeviceSelect(devices) {
+			const select = document.getElementById('deviceSelect')
+			const current = select.value
+			select.innerHTML = '<option value="">Любое устройство</option>'
+			devices.forEach(device => {
+				const option = document.createElement('option')
+				option.value = device.id
+				option.textContent = `${device.id}${device.account ? ` (${device.account})` : ''}`
+				select.appendChild(option)
+			})
+			if (current) {
+				select.value = current
+				if (select.value !== current) select.value = ''
+			}
+			handleDeviceSelectChange()
+		}
+
+		function renderDevices(devices) {
+			const container = document.getElementById('devicesContainer')
+			if (devices.length === 0) {
+				container.innerHTML = '<p>Устройств пока нет. Сканируйте QR в приложении или добавьте вручную.</p>'
+				return
+			}
+			devices.sort((a, b) => {
+				return new Date(b.lastSeen || b.registeredAt) - new Date(a.lastSeen || a.registeredAt)
+			})
+			container.innerHTML = devices.map(device => {
+				const lastSeen = formatDate(device.lastSeen)
+				const registeredAt = formatDate(device.registeredAt)
+				return `
+					<div class="deal-item">
+						<div class="deal-header">
+							<span class="deal-id">ID: ${device.id}</span>
+							<span class="status-badge status-pending">${device.source || 'device'}</span>
+						</div>
+						<div class="deal-meta">Реквизиты: ${device.account || '—'}</div>
+						<div class="deal-meta">Последняя активность: ${lastSeen || '—'}</div>
+						<div class="deal-meta">Добавлено: ${registeredAt || '—'}</div>
+					</div>
+				`
+			}).join('')
+		}
+
+		function handleDeviceSelectChange() {
+			const select = document.getElementById('deviceSelect')
+			const info = document.getElementById('deviceInfo')
+			const accountInput = document.getElementById('accountInput')
+			const device = getDeviceById(select.value)
+			if (device) {
+				info.textContent = device.account ? `Реквизиты устройства: ${device.account}` : 'Реквизиты не заданы'
+				if (!accountInput.value && device.account) {
+					accountInput.value = device.account
+				}
+			} else {
+				info.textContent = 'Если оставить поля пустыми, заявка закроется по сумме с любого устройства.'
+			}
+		}
+
 		// Render deals
 		function renderDeals(deals) {
 			const container = document.getElementById('dealsContainer')
@@ -261,11 +402,11 @@
 				return new Date(b.createdAt) - new Date(a.createdAt)
 			})
 			container.innerHTML = deals.map(deal => {
-				const createdAt = new Date(deal.createdAt).toLocaleString('ru-RU')
+				const createdAt = formatDate(deal.createdAt)
 				const timeLeft = deal.status === 'pending' ? getTimeLeft(deal.createdAt) : null
 				let matchInfo = ''
 				if (deal.match) {
-					matchInfo = `<div class="deal-meta">✅ Совпадение: ${deal.match.title || 'N/A'}</div>`
+					matchInfo = `<div class="deal-meta">✅ Совпадение: ${deal.match.title || 'N/A'} (${deal.match.deviceId || 'device ?'})</div>`
 				}
 				let actions = ''
 				if (deal.status === 'pending') {
@@ -285,8 +426,10 @@
 						</div>
 						<div class="deal-amount">${deal.amount}</div>
 						<div class="deal-meta">Создано: ${createdAt}</div>
-						${deal.confirmedAt ? `<div class="deal-meta">Подтверждено: ${new Date(deal.confirmedAt).toLocaleString('ru-RU')}</div>` : ''}
-						${deal.rejectedAt ? `<div class="deal-meta">Отклонено: ${new Date(deal.rejectedAt).toLocaleString('ru-RU')} (${deal.reason || 'manual'})</div>` : ''}
+						${deal.deviceId ? `<div class="deal-meta">Устройство: ${deal.deviceId}</div>` : ''}
+						${deal.account ? `<div class="deal-meta">Реквизиты: ${deal.account}</div>` : ''}
+						${deal.confirmedAt ? `<div class="deal-meta">Подтверждено: ${formatDate(deal.confirmedAt)}</div>` : ''}
+						${deal.rejectedAt ? `<div class="deal-meta">Отклонено: ${formatDate(deal.rejectedAt)} (${deal.reason || 'manual'})</div>` : ''}
 						${matchInfo}
 						${actions}
 					</div>
@@ -318,10 +461,15 @@
 		}
 
 		// Auto-refresh every 5 seconds
-		setInterval(loadDeals, 5000)
+		setInterval(() => {
+			loadDeals()
+			loadDevices()
+		}, 5000)
 		// Initial load
 		loadDeals()
+		loadDevices()
 
+		document.getElementById('deviceSelect').addEventListener('change', handleDeviceSelectChange)
 		// Enter key to create deal
 		document.getElementById('amount').addEventListener('keypress', (e) => {
 			if (e.key === 'Enter') createDeal()

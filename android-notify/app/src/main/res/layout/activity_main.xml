@@ -1,59 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:tools="http://schemas.android.com/tools"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:layout_width="match_parent"
-	android:layout_height="match_parent"
-	android:orientation="vertical"
-	tools:context=".ui.MainActivity">
+	android:layout_height="match_parent">
 
-	<androidx.appcompat.widget.Toolbar
-		android:id="@+id/toolbar"
+	<androidx.fragment.app.FragmentContainerView
+		android:id="@+id/fragmentContainer"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:layout_above="@id/bottomNavigation" />
+
+	<com.google.android.material.bottomnavigation.BottomNavigationView
+		android:id="@+id/bottomNavigation"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
-		android:background="?attr/colorPrimary"
-		android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar" />
+		android:layout_gravity="bottom"
+		app:menu="@menu/bottom_navigation" />
 
-	<TextView
-		android:id="@+id/tvStatus"
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:padding="12dp"
-		android:text="@string/status_unknown" />
-
-	<LinearLayout
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:orientation="horizontal"
-		android:paddingStart="12dp"
-		android:paddingEnd="12dp"
-		android:paddingBottom="8dp">
-
-		<Button
-			android:id="@+id/btnOpenNotifAccess"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:text="@string/open_access_settings" />
-
-		<Button
-			android:id="@+id/btnTestPost"
-			android:layout_width="0dp"
-			android:layout_height="wrap_content"
-			android:layout_weight="1"
-			android:text="@string/send_test_notification" />
-	</LinearLayout>
-
-	<TextView
-		android:layout_width="match_parent"
-		android:layout_height="wrap_content"
-		android:padding="12dp"
-		android:text="@string/select_apps_hint" />
-
-	<androidx.recyclerview.widget.RecyclerView
-		android:id="@+id/appsRecycler"
-		android:layout_width="match_parent"
-		android:layout_height="0dp"
-		android:layout_weight="1" />
-</LinearLayout>
-
-
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
