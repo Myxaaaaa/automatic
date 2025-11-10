@@ -72,6 +72,10 @@ class MainActivity : AppCompatActivity() {
 				adapter.loadInstalledApps()
 				true
 			}
+			R.id.action_scan_qr -> {
+				startActivity(Intent(this, ScanQrActivity::class.java))
+				true
+			}
 			else -> super.onOptionsItemSelected(item)
 		}
 	}

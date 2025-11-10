@@ -8,6 +8,7 @@
 	<string name="send_test_notification">Тест уведомление</string>
 	<string name="select_apps_hint">Выберите приложения, уведомления которых отправлять на платформу:</string>
 	<string name="refresh">Обновить</string>
+	<string name="scan_qr">Сканировать QR платформы</string>
 </resources>
 
 

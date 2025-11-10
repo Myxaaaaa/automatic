@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
+import com.example.notifyforwarder.prefs.AppPreferences
 
 object HttpClient {
 	private val client: OkHttpClient by lazy {
@@ -19,11 +20,16 @@ object HttpClient {
 
 	private val JSON = "application/json; charset=utf-8".toMediaType()
 
-	fun postJson(url: String, jsonBody: String) {
-		val request = Request.Builder()
+	fun postJson(url: String, jsonBody: String, context: android.content.Context? = null) {
+		val builder = Request.Builder()
 			.url(url)
 			.post(jsonBody.toRequestBody(JSON))
-			.build()
+		context?.let {
+			AppPreferences.getSecret(it)?.let { secret ->
+				if (secret.isNotBlank()) builder.addHeader("Authorization", "Bearer $secret")
+			}
+		}
+		val request = builder.build()
 		runCatching {
 			client.newCall(request).execute().use { response ->
 				if (!response.isSuccessful) {

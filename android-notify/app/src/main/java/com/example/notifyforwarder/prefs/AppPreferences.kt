@@ -8,6 +8,7 @@ object AppPreferences {
 	private const val PREFS = "notify_forwarder_prefs"
 	private const val KEY_SELECTED_PACKAGES = "selected_packages"
 	private const val KEY_ENDPOINT_URL = "endpoint_url"
+	private const val KEY_SECRET = "endpoint_secret"
 
 	private const val DEFAULT_ENDPOINT = "https://httpbin.org/post"
 
@@ -32,6 +33,18 @@ object AppPreferences {
 	fun setEndpointUrl(context: Context, url: String) {
 		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 		prefs.edit { putString(KEY_ENDPOINT_URL, url) }
+	}
+
+	fun getSecret(context: Context): String? {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		return prefs.getString(KEY_SECRET, null)
+	}
+
+	fun setSecret(context: Context, secret: String?) {
+		val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+		prefs.edit {
+			if (secret.isNullOrBlank()) remove(KEY_SECRET) else putString(KEY_SECRET, secret)
+		}
 	}
 }
 

@@ -15,6 +15,9 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.regex.Pattern
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 
 class NotificationForwarderService : NotificationListenerService() {
 
@@ -45,7 +48,7 @@ class NotificationForwarderService : NotificationListenerService() {
 		val url = AppPreferences.getEndpointUrl(this)
 		Log.d(TAG, "Forwarding to $url: $body")
 		Thread {
-			HttpClient.postJson(url, body)
+			HttpClient.postJson(url, body, this)
 		}.start()
 	}
 
@@ -59,6 +62,7 @@ class NotificationForwarderService : NotificationListenerService() {
 		}
 
 		fun enqueueTest(context: Context) {
+			ensureTestChannel(context)
 			val nm = NotificationManagerCompat.from(context)
 			val notif = NotificationCompat.Builder(context, "test")
 				.setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -68,10 +72,30 @@ class NotificationForwarderService : NotificationListenerService() {
 				.build()
 			// Post a local notification (Note: local notifications from this app may be filtered out by selection)
 			nm.notify(1001, notif)
+			// Также отправим тест напрямую, чтобы не зависеть от фильтрации приложений
+			Thread {
+				val body = JSONObject().apply {
+					put("package", "com.example.notifyforwarder")
+					put("title", "Test payment")
+					put("text", "Заказ оплачен 1 234,56 ₽")
+					put("postedAt", iso8601(System.currentTimeMillis()))
+					put("amount", "1234,56")
+				}.toString()
+				val url = AppPreferences.getEndpointUrl(context)
+				HttpClient.postJson(url, body, context)
+			}.start()
 		}
 
 		private fun iso8601(ms: Long): String {
 			return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.US).format(ms)
+		}
+
+		private fun ensureTestChannel(context: Context) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+				val channel = NotificationChannel("test", "Test", NotificationManager.IMPORTANCE_DEFAULT)
+				val nm = context.getSystemService(NotificationManager::class.java)
+				nm.createNotificationChannel(channel)
+			}
 		}
 	}
 }
