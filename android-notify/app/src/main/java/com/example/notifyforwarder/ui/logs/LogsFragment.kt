@@ -13,6 +13,8 @@ import com.example.notifyforwarder.data.LogRepository
 import com.example.notifyforwarder.databinding.FragmentLogsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
+import android.text.TextWatcher
+import android.text.Editable
 
 class LogsFragment : Fragment() {
 	private var _binding: FragmentLogsBinding? = null
@@ -51,9 +53,23 @@ class LogsFragment : Fragment() {
 			binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
 			binding.recyclerView.adapter = adapter
 
+			// Поиск по логам
+			try {
+				val searchEditText = binding.root.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.searchInput)
+				searchEditText?.addTextChangedListener(object : TextWatcher {
+					override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+					override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+					override fun afterTextChanged(s: Editable?) {
+						viewModel.setSearchQuery(s?.toString() ?: "")
+					}
+				})
+			} catch (e: Exception) {
+				android.util.Log.e("LogsFragment", "Error setting up search", e)
+			}
+
 			viewLifecycleOwner.lifecycleScope.launch {
 				try {
-					viewModel.logs.collect { logs ->
+					viewModel.filteredLogs.collect { logs ->
 						try {
 							adapter.submitList(logs)
 							binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE

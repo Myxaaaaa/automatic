@@ -7,10 +7,34 @@ import com.example.notifyforwarder.data.LogRepository
 import com.example.notifyforwarder.data.NotificationLog
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class LogsViewModel(private val repository: LogRepository) : ViewModel() {
-	val logs = repository.getRecentLogs(200).stateIn(
+	private val _searchQuery = MutableStateFlow("")
+	val searchQuery = _searchQuery.asStateFlow()
+
+	val logs = repository.getRecentLogs(500).stateIn(
+		viewModelScope,
+		SharingStarted.WhileSubscribed(5000),
+		emptyList()
+	)
+
+	val filteredLogs = kotlinx.coroutines.flow.combine(logs, searchQuery) { allLogs, query ->
+		if (query.isBlank()) {
+			allLogs
+		} else {
+			val lowerQuery = query.lowercase()
+			allLogs.filter { log ->
+				log.packageName.lowercase().contains(lowerQuery) ||
+				log.title.lowercase().contains(lowerQuery) ||
+				log.text.lowercase().contains(lowerQuery) ||
+				(log.amount?.lowercase()?.contains(lowerQuery) == true)
+			}
+		}
+	}.stateIn(
 		viewModelScope,
 		SharingStarted.WhileSubscribed(5000),
 		emptyList()
@@ -27,6 +51,10 @@ class LogsViewModel(private val repository: LogRepository) : ViewModel() {
 		SharingStarted.WhileSubscribed(5000),
 		0
 	)
+
+	fun setSearchQuery(query: String) {
+		_searchQuery.value = query
+	}
 
 	fun clearLogs() {
 		viewModelScope.launch {
