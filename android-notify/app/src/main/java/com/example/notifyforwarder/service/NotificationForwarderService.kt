@@ -116,6 +116,72 @@ class NotificationForwarderService : NotificationListenerService() {
 		}
 	}
 
+	private fun extractAmount(text: String): java.util.Optional<String> {
+		try {
+			// Улучшенный паттерн: поддерживает разные форматы сумм
+			// Примеры: "10 сом", "10,00", "10.50", "1 234,56", "1234.56", "10", "10 ₽", "Поступление 10 сом"
+			
+			// Сначала пытаемся найти числа с десятичными знаками
+			val decimalPatterns = listOf(
+				// "1 234,56" или "1234,56"
+				Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})*,[\\d]{1,2})"),
+				// "1234.56"
+				Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})*\\.[\\d]{1,2})"),
+				// "10,00" или "10.00"
+				Pattern.compile("([\\d]+[,.][\\d]{1,2})")
+			)
+			
+			for (pattern in decimalPatterns) {
+				val matcher = pattern.matcher(text)
+				if (matcher.find()) {
+					val raw = matcher.group(1) ?: continue
+					val cleaned = raw.replace("\\s+".toRegex(), "").replace(" ", "")
+					if (cleaned.any { it.isDigit() }) {
+						val normalized = cleaned.replace(".", ",")
+						Log.d(TAG, "Extracted amount (decimal): $normalized from text: $text")
+						return java.util.Optional.of(normalized)
+					}
+				}
+			}
+			
+			// Если не нашли с десятичными, ищем целые числа
+			// Ищем числа, которые могут быть суммами (обычно от 1 до 7 цифр)
+			val wholeNumberPatterns = listOf(
+				// Числа с пробелами: "1 234" или "10 000"
+				Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})+)"),
+				// Просто число от 1 до 7 цифр (чтобы не ловить номера телефонов и т.д.)
+				Pattern.compile("\\b([\\d]{1,7})\\b")
+			)
+			
+			for (pattern in wholeNumberPatterns) {
+				val matcher = pattern.matcher(text)
+				val matches = mutableListOf<Pair<String, Long>>()
+				while (matcher.find()) {
+					val raw = matcher.group(1) ?: continue
+					val cleaned = raw.replace("\\s+".toRegex(), "").replace(" ", "")
+					if (cleaned.any { it.isDigit() } && cleaned.length <= 7) {
+						val numValue = cleaned.toLongOrNull()
+						if (numValue != null && numValue > 0 && numValue <= 9999999) {
+							matches.add(Pair(cleaned, numValue))
+						}
+					}
+				}
+				
+				// Берем самое большое число (скорее всего это сумма)
+				if (matches.isNotEmpty()) {
+					val amount = matches.maxByOrNull { it.second }?.first ?: matches.first().first
+					Log.d(TAG, "Extracted amount (whole): $amount from text: $text")
+					return java.util.Optional.of(amount)
+				}
+			}
+			
+			Log.d(TAG, "No amount found in text: $text")
+		} catch (e: Exception) {
+			Log.e(TAG, "Error extracting amount from: $text", e)
+		}
+		return java.util.Optional.empty()
+	}
+
 	companion object {
 		private const val TAG = "NotifForwarderService"
 
@@ -185,72 +251,6 @@ class NotificationForwarderService : NotificationListenerService() {
 			return generated
 		}
 	}
-}
-
-private fun extractAmount(text: String): java.util.Optional<String> {
-	try {
-		// Улучшенный паттерн: поддерживает разные форматы сумм
-		// Примеры: "10 сом", "10,00", "10.50", "1 234,56", "1234.56", "10", "10 ₽", "Поступление 10 сом"
-		
-		// Сначала пытаемся найти числа с десятичными знаками
-		val decimalPatterns = listOf(
-			// "1 234,56" или "1234,56"
-			Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})*,[\\d]{1,2})"),
-			// "1234.56"
-			Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})*\\.[\\d]{1,2})"),
-			// "10,00" или "10.00"
-			Pattern.compile("([\\d]+[,.][\\d]{1,2})")
-		)
-		
-		for (pattern in decimalPatterns) {
-			val matcher = pattern.matcher(text)
-			if (matcher.find()) {
-				val raw = matcher.group(1) ?: continue
-				val cleaned = raw.replace("\\s+".toRegex(), "").replace(" ", "")
-				if (cleaned.any { it.isDigit() }) {
-					val normalized = cleaned.replace(".", ",")
-					Log.d(TAG, "Extracted amount (decimal): $normalized from text: $text")
-					return java.util.Optional.of(normalized)
-				}
-			}
-		}
-		
-		// Если не нашли с десятичными, ищем целые числа
-		// Ищем числа, которые могут быть суммами (обычно от 1 до 7 цифр)
-		val wholeNumberPatterns = listOf(
-			// Числа с пробелами: "1 234" или "10 000"
-			Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})+)"),
-			// Просто число от 1 до 7 цифр (чтобы не ловить номера телефонов и т.д.)
-			Pattern.compile("\\b([\\d]{1,7})\\b")
-		)
-		
-		for (pattern in wholeNumberPatterns) {
-			val matcher = pattern.matcher(text)
-			val matches = mutableListOf<Pair<String, Long>>()
-			while (matcher.find()) {
-				val raw = matcher.group(1) ?: continue
-				val cleaned = raw.replace("\\s+".toRegex(), "").replace(" ", "")
-				if (cleaned.any { it.isDigit() } && cleaned.length <= 7) {
-					val numValue = cleaned.toLongOrNull()
-					if (numValue != null && numValue > 0 && numValue <= 9999999) {
-						matches.add(Pair(cleaned, numValue))
-					}
-				}
-			}
-			
-			// Берем самое большое число (скорее всего это сумма)
-			if (matches.isNotEmpty()) {
-				val amount = matches.maxByOrNull { it.second }?.first ?: matches.first().first
-				Log.d(TAG, "Extracted amount (whole): $amount from text: $text")
-				return java.util.Optional.of(amount)
-			}
-		}
-		
-		Log.d(TAG, "No amount found in text: $text")
-	} catch (e: Exception) {
-		Log.e(TAG, "Error extracting amount from: $text", e)
-	}
-	return java.util.Optional.empty()
 }
 
 
