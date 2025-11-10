@@ -25,24 +25,28 @@ jobs:
         run: |
           sdkmanager --install "platforms;android-34" "platform-tools" "build-tools;34.0.0"
 
-      - name: Cache Gradle
+      - name: Cache Gradle caches
         uses: actions/cache@v4
         with:
           path: |
             ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/build.gradle*', '**/settings.gradle*', '**/gradle.properties') }}
+          key: ${{ runner.os }}-gradle-caches-${{ hashFiles('**/*.gradle*', '**/build.gradle*', '**/settings.gradle*', '**/gradle.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-caches-
 
-      - name: Set up Gradle
-        uses: gradle/gradle-build-action@v3
-        with:
-          gradle-version: 8.7
+      - name: Install Gradle via SDKMAN
+        shell: bash
+        run: |
+          curl -s "https://get.sdkman.io" | bash
+          source "$HOME/.sdkman/bin/sdkman-init.sh"
+          sdk install gradle 8.7
+          gradle --version
 
       - name: Build Debug APK
         working-directory: android-notify
-        run: gradle :app:assembleDebug
+        run: |
+          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}"
+          gradle :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
