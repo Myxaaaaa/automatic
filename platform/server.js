@@ -46,10 +46,14 @@ function normalizeAmount(value) {
 	// Убираем лишние запятые, оставляем только одну
 	const parts = normalized.split(',')
 	if (parts.length > 1) {
-		normalized = parts[0] + ',' + parts.slice(1).join('')
+		// Оставляем только целую часть и первые 2 цифры после запятой
+		const integerPart = parts[0]
+		const decimalPart = parts.slice(1).join('').substring(0, 2)
+		normalized = decimalPart ? `${integerPart},${decimalPart}` : integerPart
 	}
 	
-	return normalized
+	// Если это просто число без запятой, возвращаем как есть
+	return normalized || ''
 }
 
 function normalizeText(value) {

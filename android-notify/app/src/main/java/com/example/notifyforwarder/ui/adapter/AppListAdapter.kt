@@ -48,19 +48,35 @@ class AppListAdapter(
 	}
 
 	fun loadInstalledApps() {
-		val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-			.filter { it.flags and ApplicationInfo.FLAG_SYSTEM == 0 }
-			.map {
-				AppInfo(
-					label = pm.getApplicationLabel(it).toString(),
-					packageName = it.packageName,
-					icon = pm.getApplicationIcon(it)
-				)
-			}
-			.sortedBy { it.label.lowercase() }
-		items.clear()
-		items.addAll(apps)
-		notifyDataSetChanged()
+		try {
+			val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+				.filter { 
+					try {
+						it.flags and ApplicationInfo.FLAG_SYSTEM == 0
+					} catch (e: Exception) {
+						android.util.Log.e("AppListAdapter", "Error filtering app ${it.packageName}", e)
+						false
+					}
+				}
+				.mapNotNull {
+					try {
+						AppInfo(
+							label = pm.getApplicationLabel(it).toString(),
+							packageName = it.packageName,
+							icon = pm.getApplicationIcon(it)
+						)
+					} catch (e: Exception) {
+						android.util.Log.e("AppListAdapter", "Error loading app ${it.packageName}", e)
+						null
+					}
+				}
+				.sortedBy { it.label.lowercase() }
+			items.clear()
+			items.addAll(apps)
+			notifyDataSetChanged()
+		} catch (e: Exception) {
+			android.util.Log.e("AppListAdapter", "Error loading installed apps", e)
+		}
 	}
 
 	fun selectAll(select: Boolean) {

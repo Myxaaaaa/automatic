@@ -10,6 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.notifyforwarder.data.AppDatabase
 import com.example.notifyforwarder.data.LogRepository
+import com.example.notifyforwarder.R
 import com.example.notifyforwarder.databinding.FragmentLogsBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
@@ -55,7 +56,8 @@ class LogsFragment : Fragment() {
 
 			// Поиск по логам
 			try {
-				val searchEditText = binding.root.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.searchInput)
+				val searchLayout = binding.root.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.searchInput)?.parent as? android.view.ViewGroup
+				val searchEditText = binding.root.findViewById<com.google.android.material.textfield.TextInputEditText>(com.example.notifyforwarder.R.id.searchInput)
 				searchEditText?.addTextChangedListener(object : TextWatcher {
 					override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 					override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -65,6 +67,7 @@ class LogsFragment : Fragment() {
 				})
 			} catch (e: Exception) {
 				android.util.Log.e("LogsFragment", "Error setting up search", e)
+				// Если поиск не работает, продолжаем без него
 			}
 
 			viewLifecycleOwner.lifecycleScope.launch {
