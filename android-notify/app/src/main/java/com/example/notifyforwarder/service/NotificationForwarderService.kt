@@ -51,8 +51,6 @@ class NotificationForwarderService : NotificationListenerService() {
 
 	companion object {
 		private const val TAG = "NotifForwarderService"
-		private val AMOUNT_PATTERN: Pattern =
-			Pattern.compile("([\\d\\s]+(?:[\\.,]\\d{2})?)")
 
 		fun hasNotificationAccess(context: Context): Boolean {
 			val cn = ComponentName(context, NotificationForwarderService::class.java)
@@ -79,7 +77,7 @@ class NotificationForwarderService : NotificationListenerService() {
 }
 
 private fun extractAmount(text: String): java.util.Optional<String> {
-	val matcher = NotificationForwarderService.AMOUNT_PATTERN.matcher(text)
+	val matcher = AMOUNT_PATTERN.matcher(text)
 	while (matcher.find()) {
 		val raw = matcher.group(1) ?: continue
 		val cleaned = raw.replace("\\s+".toRegex(), "")
@@ -89,5 +87,9 @@ private fun extractAmount(text: String): java.util.Optional<String> {
 	}
 	return java.util.Optional.empty()
 }
+
+private val AMOUNT_PATTERN: Pattern =
+	Pattern.compile("([\\d\\s]+(?:[\\.,]\\d{2})?)")
+
 
 
