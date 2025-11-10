@@ -20,8 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
 					AppDatabase::class.java,
 					"notify_forwarder_db"
 				)
-				.allowMainThreadQueries() // Временно для отладки
-				.fallbackToDestructiveMigration() // Для разработки
+				.fallbackToDestructiveMigration() // Для разработки - позволяет пересоздавать БД при изменении схемы
 				.build()
 				INSTANCE = instance
 				instance
