@@ -43,39 +43,77 @@ class NotificationForwarderService : NotificationListenerService() {
 	}
 
 	private fun forward(pkg: String, title: String, text: String, postedAtMs: Long) {
-		val amount = extractAmount(text).orElse(null)
-		val body = JSONObject().apply {
-			put("package", pkg)
-			put("title", title)
-			put("text", text)
-			put("postedAt", iso8601(postedAtMs))
-			if (amount != null) put("amount", amount)
+		try {
+			val amount = extractAmount(text).orElse(null)
 			val deviceId = ensureDeviceId(this@NotificationForwarderService)
-			put("deviceId", deviceId)
-			AppPreferences.getAccountLabel(this@NotificationForwarderService)?.let {
-				put("account", it)
-			}
-		}.toString()
-		val url = AppPreferences.getEndpointUrl(this)
-		Log.d(TAG, "Forwarding to $url: $body")
-		
-		// Save log and forward
-		val database = AppDatabase.getDatabase(this)
-		Thread {
-			val result = HttpClient.postJson(url, body, this)
-			CoroutineScope(Dispatchers.IO).launch {
-				val log = NotificationLog(
-					packageName = pkg,
-					title = title,
-					text = text,
-					amount = amount,
-					postedAt = postedAtMs,
-					success = result.success,
-					errorMessage = result.errorMessage
-				)
-				database.notificationLogDao().insert(log)
-			}
-		}.start()
+			
+			val body = JSONObject().apply {
+				put("package", pkg)
+				put("title", title)
+				put("text", text)
+				put("postedAt", iso8601(postedAtMs))
+				if (amount != null) {
+					put("amount", amount)
+					Log.d(TAG, "Extracted amount: $amount from: $text")
+				} else {
+					Log.d(TAG, "No amount found in: $text")
+				}
+				put("deviceId", deviceId)
+				// Account label будет отправлен только если он был установлен через QR
+				AppPreferences.getAccountLabel(this@NotificationForwarderService)?.let {
+					put("account", it)
+				}
+			}.toString()
+			
+			val url = AppPreferences.getEndpointUrl(this)
+			Log.i(TAG, "Forwarding notification to $url")
+			Log.d(TAG, "Body: $body")
+			
+			// Save log and forward
+			val database = AppDatabase.getDatabase(this)
+			Thread {
+				try {
+					val result = HttpClient.postJson(url, body, this)
+					Log.d(TAG, "POST result: success=${result.success}, error=${result.errorMessage}")
+					CoroutineScope(Dispatchers.IO).launch {
+						try {
+							val log = NotificationLog(
+								packageName = pkg,
+								title = title,
+								text = text,
+								amount = amount,
+								postedAt = postedAtMs,
+								success = result.success,
+								errorMessage = result.errorMessage
+							)
+							database.notificationLogDao().insert(log)
+						} catch (e: Exception) {
+							Log.e(TAG, "Error saving log", e)
+						}
+					}
+				} catch (e: Exception) {
+					Log.e(TAG, "Error forwarding notification", e)
+					CoroutineScope(Dispatchers.IO).launch {
+						try {
+							val log = NotificationLog(
+								packageName = pkg,
+								title = title,
+								text = text,
+								amount = amount,
+								postedAt = postedAtMs,
+								success = false,
+								errorMessage = e.message
+							)
+							database.notificationLogDao().insert(log)
+						} catch (dbError: Exception) {
+							Log.e(TAG, "Error saving error log", dbError)
+						}
+					}
+				}
+			}.start()
+		} catch (e: Exception) {
+			Log.e(TAG, "Error in forward()", e)
+		}
 	}
 
 	companion object {
@@ -150,19 +188,39 @@ class NotificationForwarderService : NotificationListenerService() {
 }
 
 private fun extractAmount(text: String): java.util.Optional<String> {
-	val matcher = AMOUNT_PATTERN.matcher(text)
-	while (matcher.find()) {
-		val raw = matcher.group(1) ?: continue
-		val cleaned = raw.replace("\\s+".toRegex(), "")
-		if (cleaned.any { it.isDigit() }) {
-			return java.util.Optional.of(cleaned)
+	try {
+		// Улучшенный паттерн: поддерживает разные форматы сумм
+		// Примеры: "10 сом", "10,00", "10.50", "1 234,56", "1234.56", "10", "10 ₽"
+		val patterns = listOf(
+			// С запятой и пробелами: "1 234,56"
+			Pattern.compile("([\\d\\s]+,[\\d]{1,2})"),
+			// С точкой: "1234.56"
+			Pattern.compile("([\\d\\s]+\\.[\\d]{1,2})"),
+			// Просто число с пробелами: "1 234"
+			Pattern.compile("([\\d]{1,3}(?:\\s[\\d]{3})+)"),
+			// Просто число: "10"
+			Pattern.compile("\\b([\\d]+)\\b")
+		)
+		
+		for (pattern in patterns) {
+			val matcher = pattern.matcher(text)
+			if (matcher.find()) {
+				val raw = matcher.group(1) ?: continue
+				// Убираем все пробелы, оставляем только цифры, запятую или точку
+				val cleaned = raw.replace("\\s+".toRegex(), "").replace(" ", "")
+				if (cleaned.any { it.isDigit() }) {
+					// Нормализуем: заменяем точку на запятую для единообразия
+					val normalized = cleaned.replace(".", ",")
+					Log.d(TAG, "Extracted amount: $normalized from text: $text")
+					return java.util.Optional.of(normalized)
+				}
+			}
 		}
+	} catch (e: Exception) {
+		Log.e(TAG, "Error extracting amount from: $text", e)
 	}
 	return java.util.Optional.empty()
 }
-
-private val AMOUNT_PATTERN: Pattern =
-	Pattern.compile("([\\d\\s]+(?:[\\.,]\\d{2})?)")
 
 
 

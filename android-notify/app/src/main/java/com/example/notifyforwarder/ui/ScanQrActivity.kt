@@ -46,26 +46,28 @@ class ScanQrActivity : AppCompatActivity() {
 				val obj = JSONObject(result.contents)
 				val endpoint = obj.optString("endpoint")
 				val secret = obj.optString("secret", null)
-				val deviceId = obj.optString("deviceId", null)
-				val account = obj.optString("account", null)
+				
 				if (endpoint.isNotBlank()) {
 					AppPreferences.setEndpointUrl(this, endpoint)
 					AppPreferences.setSecret(this, secret)
-					val resolvedDeviceId = if (!deviceId.isNullOrBlank()) deviceId else {
-						UUID.randomUUID().toString()
-					}
-					AppPreferences.setDeviceId(this, resolvedDeviceId)
-					AppPreferences.setAccountLabel(this, account)
-					Toast.makeText(this, "Платформа подключена", Toast.LENGTH_SHORT).show()
+					
+					// Генерируем deviceId автоматически при первом подключении
+					val deviceId = AppPreferences.getDeviceId(this) ?: UUID.randomUUID().toString()
+					AppPreferences.setDeviceId(this, deviceId)
+					
+					Toast.makeText(this, "Платформа подключена! Device ID: ${deviceId.take(8)}...", Toast.LENGTH_LONG).show()
 					setResult(RESULT_OK)
 				} else {
-					Toast.makeText(this, "Некорректный QR", Toast.LENGTH_SHORT).show()
+					Toast.makeText(this, "Некорректный QR: отсутствует endpoint", Toast.LENGTH_SHORT).show()
 					setResult(RESULT_CANCELED)
 				}
-			}.onFailure {
-				Toast.makeText(this, "Ошибка чтения QR", Toast.LENGTH_SHORT).show()
+			}.onFailure { e ->
+				android.util.Log.e("ScanQrActivity", "Error parsing QR", e)
+				Toast.makeText(this, "Ошибка чтения QR: ${e.message}", Toast.LENGTH_SHORT).show()
 				setResult(RESULT_CANCELED)
 			}
+		} else {
+			setResult(RESULT_CANCELED)
 		}
 		finish()
 	}

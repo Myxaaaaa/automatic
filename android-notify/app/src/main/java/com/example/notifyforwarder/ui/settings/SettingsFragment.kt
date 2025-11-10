@@ -32,42 +32,75 @@ class SettingsFragment : Fragment() {
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
 
-		binding.appsRecycler.layoutManager = LinearLayoutManager(requireContext())
-		adapter = AppListAdapter(
-			context = requireContext(),
-			initialSelectedPackages = AppPreferences.getSelectedPackages(requireContext()).toMutableSet()
-		) { updatedSelection ->
-			AppPreferences.setSelectedPackages(requireContext(), updatedSelection)
-		}
-		binding.appsRecycler.adapter = adapter
-
-		binding.switchAllApps.setOnCheckedChangeListener { _, isChecked ->
-			if (isChecked) {
-				AppPreferences.setSelectedPackages(requireContext(), emptySet())
-				adapter.selectAll(false)
+		try {
+			binding.appsRecycler.layoutManager = LinearLayoutManager(requireContext())
+			adapter = AppListAdapter(
+				context = requireContext(),
+				initialSelectedPackages = AppPreferences.getSelectedPackages(requireContext()).toMutableSet()
+			) { updatedSelection ->
+				try {
+					AppPreferences.setSelectedPackages(requireContext(), updatedSelection)
+				} catch (e: Exception) {
+					android.util.Log.e("SettingsFragment", "Error saving selection", e)
+				}
 			}
-			binding.appsRecycler.visibility = if (isChecked) View.GONE else View.VISIBLE
+			binding.appsRecycler.adapter = adapter
+
+			binding.switchAllApps.setOnCheckedChangeListener { _, isChecked ->
+				try {
+					if (isChecked) {
+						AppPreferences.setSelectedPackages(requireContext(), emptySet())
+						adapter.selectAll(false)
+					}
+					binding.appsRecycler.visibility = if (isChecked) View.GONE else View.VISIBLE
+				} catch (e: Exception) {
+					android.util.Log.e("SettingsFragment", "Error handling switch", e)
+				}
+			}
+
+			try {
+				val hasSelection = AppPreferences.getSelectedPackages(requireContext()).isNotEmpty()
+				binding.switchAllApps.isChecked = !hasSelection
+				binding.appsRecycler.visibility = if (!hasSelection) View.GONE else View.VISIBLE
+			} catch (e: Exception) {
+				android.util.Log.e("SettingsFragment", "Error checking selection", e)
+			}
+
+			binding.btnOpenNotifAccess.setOnClickListener {
+				try {
+					startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+				} catch (e: Exception) {
+					android.util.Log.e("SettingsFragment", "Error opening settings", e)
+				}
+			}
+
+			binding.btnTestPost.setOnClickListener {
+				try {
+					NotificationForwarderService.enqueueTest(requireContext())
+				} catch (e: Exception) {
+					android.util.Log.e("SettingsFragment", "Error sending test", e)
+				}
+			}
+
+			binding.btnScanQr.setOnClickListener {
+				try {
+					startActivity(Intent(requireContext(), ScanQrActivity::class.java))
+				} catch (e: Exception) {
+					android.util.Log.e("SettingsFragment", "Error opening QR scanner", e)
+				}
+			}
+
+			try {
+				adapter.loadInstalledApps()
+			} catch (e: Exception) {
+				android.util.Log.e("SettingsFragment", "Error loading apps", e)
+			}
+			
+			updateServiceStatus()
+			updateConnectionInfo()
+		} catch (e: Exception) {
+			android.util.Log.e("SettingsFragment", "Error in onViewCreated", e)
 		}
-
-		val hasSelection = AppPreferences.getSelectedPackages(requireContext()).isNotEmpty()
-		binding.switchAllApps.isChecked = !hasSelection
-		binding.appsRecycler.visibility = if (!hasSelection) View.GONE else View.VISIBLE
-
-		binding.btnOpenNotifAccess.setOnClickListener {
-			startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-		}
-
-		binding.btnTestPost.setOnClickListener {
-			NotificationForwarderService.enqueueTest(requireContext())
-		}
-
-		binding.btnScanQr.setOnClickListener {
-			startActivity(Intent(requireContext(), ScanQrActivity::class.java))
-		}
-
-		adapter.loadInstalledApps()
-		updateServiceStatus()
-		updateConnectionInfo()
 	}
 
 	override fun onResume() {

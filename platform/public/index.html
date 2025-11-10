@@ -296,6 +296,14 @@
 					</div>
 					<button class="secondary" data-copy-target="configEndpoint">Скопировать</button>
 				</div>
+				<hr style="margin:20px 0;border:none;border-top:1px solid #e5e7eb;" />
+				<div style="margin-top:20px;">
+					<button class="primary" id="btnGenerateConnectQr">Сгенерировать QR для подключения</button>
+					<div id="connectQrArea" class="qr-area" style="margin-top:20px;">
+						<div class="qr-holder"></div>
+						<pre></pre>
+					</div>
+				</div>
 				<div style="margin-top:20px;" class="small-text">
 					Автоотклонение заявок через <span id="configTimeout">15</span> минут.
 				</div>
@@ -487,16 +495,10 @@
 					return
 				}
 				if (action === 'qr') {
-					const device = state.devices.find(d => d.id === deviceId)
-					if (!device) throw new Error('Устройство не найдено')
-					if (!device.accountLabel) {
-						throw new Error('Назначьте реквизиты перед генерацией QR')
-					}
+					// Простой QR только с endpoint и secret (без deviceId и account)
 					const payload = {
 						endpoint: state.config?.endpoint || `${window.location.origin}/notify`,
-						secret: state.config?.secret,
-						deviceId: device.id,
-						account: device.accountLabel
+						secret: state.config?.secret
 					}
 					const qrArea = document.getElementById(`qr-${deviceId}`)
 					const holder = qrArea.querySelector('.qr-holder')
@@ -658,6 +660,24 @@
 		document.getElementById('btnCreateDeal').addEventListener('click', createDeal)
 		document.getElementById('btnAddDevice').addEventListener('click', addDevice)
 		document.getElementById('btnAddAccount').addEventListener('click', addAccount)
+		document.getElementById('btnGenerateConnectQr').addEventListener('click', () => {
+			const payload = {
+				endpoint: state.config?.endpoint || `${window.location.origin}/notify`,
+				secret: state.config?.secret
+			}
+			const qrArea = document.getElementById('connectQrArea')
+			const holder = qrArea.querySelector('.qr-holder')
+			holder.innerHTML = ''
+			new QRCode(holder, {
+				text: JSON.stringify(payload),
+				width: 200,
+				height: 200,
+				colorDark: '#1f2937',
+				colorLight: '#ffffff'
+			})
+			qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+			qrArea.classList.add('active')
+		})
 		document.querySelectorAll('[data-copy-target]').forEach(btn => {
 			btn.addEventListener('click', () => {
 				const targetId = btn.getAttribute('data-copy-target')

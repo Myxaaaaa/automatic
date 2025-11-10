@@ -36,7 +36,20 @@ function nowIso() {
 }
 
 function normalizeAmount(value) {
-	return String(value || '').replace(/\s+/g, '')
+	if (!value) return ''
+	// Убираем пробелы, нормализуем запятую/точку, убираем лишние символы
+	let normalized = String(value)
+		.replace(/\s+/g, '')  // Убираем пробелы
+		.replace(/\./g, ',')  // Точку заменяем на запятую
+		.replace(/[^\d,]/g, '') // Убираем все кроме цифр и запятой
+	
+	// Убираем лишние запятые, оставляем только одну
+	const parts = normalized.split(',')
+	if (parts.length > 1) {
+		normalized = parts[0] + ',' + parts.slice(1).join('')
+	}
+	
+	return normalized
 }
 
 function normalizeText(value) {
@@ -305,6 +318,9 @@ app.post('/notify', (req, res) => {
 	const deviceId = normalizeText(req.body?.deviceId)
 	const accountLabelFromDevice = normalizeText(req.body?.account)
 
+	console.log(`[NOTIFY] Received: amount=${amt}, deviceId=${deviceId}, account=${accountLabelFromDevice}, text="${text}"`)
+
+	// Регистрируем/обновляем устройство при получении уведомления
 	if (deviceId) {
 		const device = upsertDevice({
 			id: deviceId,
@@ -313,32 +329,48 @@ app.post('/notify', (req, res) => {
 			markActivated: true
 		})
 		devices.set(deviceId, device)
+		console.log(`[NOTIFY] Device registered/updated: ${deviceId}`)
 	}
 
+	// Ищем совпадения по сумме
 	let matched = null
-	for (const deal of deals.values()) {
-		if (deal.status !== 'pending') continue
+	const pendingDeals = Array.from(deals.values()).filter(d => d.status === 'pending')
+	console.log(`[NOTIFY] Checking ${pendingDeals.length} pending deals`)
+	
+	for (const deal of pendingDeals) {
 		const dealAmt = normalizeAmount(deal.amount)
-		const matchesAmount = amt && dealAmt === amt
+		const matchesAmount = amt && dealAmt && dealAmt === amt
+		
+		// Проверка устройства (если указано в сделке)
 		const matchesDevice = !deal.deviceId || (deviceId && deal.deviceId === deviceId)
+		
+		// Проверка реквизитов (если указано в сделке)
 		const dealAccountLabel = normalizeText(deal.accountLabel)
 		const matchesAccount = !dealAccountLabel || (accountLabelFromDevice && normalizeText(accountLabelFromDevice) === dealAccountLabel)
+		
+		console.log(`[NOTIFY] Deal ${deal.id}: amount=${dealAmt} (matches: ${matchesAmount}), device=${deal.deviceId || 'any'} (matches: ${matchesDevice}), account=${dealAccountLabel || 'any'} (matches: ${matchesAccount})`)
+		
 		if (matchesAmount && matchesDevice && matchesAccount) {
 			deal.status = 'confirmed'
 			deal.statusLabel = 'Подтверждено по уведомлению'
 			deal.statusColor = 'success'
 			deal.confirmedAt = nowIso()
 			deal.confirmedBy = 'notification'
-			deal.match = { pkg, title, text, postedAt, deviceId }
+			deal.match = { pkg, title, text, postedAt, deviceId, amount: amt }
 			if (!deal.deviceId && deviceId) deal.deviceId = deviceId
 			matched = deal
 			deals.set(deal.id, deal)
 			cancelAutoReject(deal.id)
+			console.log(`[NOTIFY] Deal ${deal.id} CONFIRMED by notification`)
 			break
 		}
 	}
 
-	res.json({ received: true, matched })
+	if (!matched && amt) {
+		console.log(`[NOTIFY] No match found for amount ${amt}. Pending deals: ${pendingDeals.map(d => `${d.id}:${normalizeAmount(d.amount)}`).join(', ')}`)
+	}
+
+	res.json({ received: true, matched, normalizedAmount: amt })
 })
 
 app.listen(PORT, () => {

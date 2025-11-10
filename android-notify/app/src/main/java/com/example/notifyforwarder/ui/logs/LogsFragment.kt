@@ -19,9 +19,17 @@ class LogsFragment : Fragment() {
 	private val binding get() = _binding!!
 
 	private val viewModel: LogsViewModel by viewModels {
-		val database = AppDatabase.getDatabase(requireContext())
-		val repository = LogRepository(database.notificationLogDao())
-		LogsViewModelFactory(repository)
+		try {
+			val database = AppDatabase.getDatabase(requireContext())
+			val repository = LogRepository(database.notificationLogDao())
+			LogsViewModelFactory(repository)
+		} catch (e: Exception) {
+			android.util.Log.e("LogsFragment", "Error creating ViewModel", e)
+			// Fallback to empty repository
+			val database = AppDatabase.getDatabase(requireContext().applicationContext)
+			val repository = LogRepository(database.notificationLogDao())
+			LogsViewModelFactory(repository)
+		}
 	}
 
 	private lateinit var adapter: LogsAdapter
@@ -38,36 +46,66 @@ class LogsFragment : Fragment() {
 	override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 		super.onViewCreated(view, savedInstanceState)
 
-		adapter = LogsAdapter(requireContext())
-		binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
-		binding.recyclerView.adapter = adapter
+		try {
+			adapter = LogsAdapter(requireContext())
+			binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
+			binding.recyclerView.adapter = adapter
 
-		viewLifecycleOwner.lifecycleScope.launch {
-			viewModel.logs.collect { logs ->
-				adapter.submitList(logs)
-				binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+			viewLifecycleOwner.lifecycleScope.launch {
+				try {
+					viewModel.logs.collect { logs ->
+						try {
+							adapter.submitList(logs)
+							binding.emptyView.visibility = if (logs.isEmpty()) View.VISIBLE else View.GONE
+						} catch (e: Exception) {
+							android.util.Log.e("LogsFragment", "Error updating logs", e)
+						}
+					}
+				} catch (e: Exception) {
+					android.util.Log.e("LogsFragment", "Error collecting logs", e)
+				}
 			}
-		}
 
-		viewLifecycleOwner.lifecycleScope.launch {
-			viewModel.successCount.collect { count ->
-				binding.tvSuccessCount.text = count.toString()
+			viewLifecycleOwner.lifecycleScope.launch {
+				try {
+					viewModel.successCount.collect { count ->
+						binding.tvSuccessCount.text = count.toString()
+					}
+				} catch (e: Exception) {
+					android.util.Log.e("LogsFragment", "Error collecting success count", e)
+				}
 			}
-		}
 
-		viewLifecycleOwner.lifecycleScope.launch {
-			viewModel.errorCount.collect { count ->
-				binding.tvErrorCount.text = count.toString()
+			viewLifecycleOwner.lifecycleScope.launch {
+				try {
+					viewModel.errorCount.collect { count ->
+						binding.tvErrorCount.text = count.toString()
+					}
+				} catch (e: Exception) {
+					android.util.Log.e("LogsFragment", "Error collecting error count", e)
+				}
 			}
-		}
 
-		binding.btnClearLogs.setOnClickListener {
-			MaterialAlertDialogBuilder(requireContext())
-				.setTitle("Очистить логи")
-				.setMessage("Удалить все логи?")
-				.setPositiveButton("Да") { _, _ -> viewModel.clearLogs() }
-				.setNegativeButton("Отмена", null)
-				.show()
+			binding.btnClearLogs.setOnClickListener {
+				try {
+					MaterialAlertDialogBuilder(requireContext())
+						.setTitle("Очистить логи")
+						.setMessage("Удалить все логи?")
+						.setPositiveButton("Да") { _, _ -> 
+							try {
+								viewModel.clearLogs()
+							} catch (e: Exception) {
+								android.util.Log.e("LogsFragment", "Error clearing logs", e)
+							}
+						}
+						.setNegativeButton("Отмена", null)
+						.show()
+				} catch (e: Exception) {
+					android.util.Log.e("LogsFragment", "Error showing dialog", e)
+				}
+			}
+		} catch (e: Exception) {
+			android.util.Log.e("LogsFragment", "Error in onViewCreated", e)
 		}
 	}
 
