@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Платформа заявок</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body {
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+			background: #f5f5f5;
+			padding: 20px;
+			max-width: 1200px;
+			margin: 0 auto;
+		}
+		header {
+			background: #1976d2;
+			color: white;
+			padding: 20px;
+			border-radius: 8px;
+			margin-bottom: 20px;
+		}
+		header h1 { font-size: 24px; }
+		.form-section {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			margin-bottom: 20px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		.form-section h2 { margin-bottom: 15px; color: #333; }
+		.form-group {
+			margin-bottom: 15px;
+		}
+		label {
+			display: block;
+			margin-bottom: 5px;
+			font-weight: 500;
+			color: #555;
+		}
+		input[type="text"] {
+			width: 100%;
+			padding: 10px;
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			font-size: 16px;
+		}
+		button {
+			padding: 10px 20px;
+			border: none;
+			border-radius: 4px;
+			font-size: 16px;
+			cursor: pointer;
+			transition: background 0.2s;
+		}
+		.btn-primary {
+			background: #1976d2;
+			color: white;
+		}
+		.btn-primary:hover { background: #1565c0; }
+		.btn-success {
+			background: #4caf50;
+			color: white;
+		}
+		.btn-success:hover { background: #45a049; }
+		.btn-danger {
+			background: #f44336;
+			color: white;
+		}
+		.btn-danger:hover { background: #da190b; }
+		.btn-small {
+			padding: 5px 10px;
+			font-size: 14px;
+			margin-left: 5px;
+		}
+		.deals-list {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		}
+		.deal-item {
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			padding: 15px;
+			margin-bottom: 10px;
+			position: relative;
+		}
+		.deal-item.pending {
+			border-left: 4px solid #ff9800;
+		}
+		.deal-item.confirmed {
+			border-left: 4px solid #4caf50;
+		}
+		.deal-item.rejected {
+			border-left: 4px solid #f44336;
+		}
+		.deal-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-bottom: 10px;
+		}
+		.deal-id {
+			font-weight: bold;
+			color: #666;
+		}
+		.status-badge {
+			padding: 4px 8px;
+			border-radius: 4px;
+			font-size: 12px;
+			font-weight: bold;
+			text-transform: uppercase;
+		}
+		.status-pending { background: #fff3e0; color: #e65100; }
+		.status-confirmed { background: #e8f5e9; color: #2e7d32; }
+		.status-rejected { background: #ffebee; color: #c62828; }
+		.deal-amount {
+			font-size: 20px;
+			font-weight: bold;
+			color: #333;
+			margin: 10px 0;
+		}
+		.deal-meta {
+			font-size: 12px;
+			color: #999;
+			margin-top: 5px;
+		}
+		.deal-actions {
+			margin-top: 10px;
+		}
+		.timer {
+			font-weight: bold;
+			color: #ff9800;
+		}
+		.error {
+			background: #ffebee;
+			color: #c62828;
+			padding: 10px;
+			border-radius: 4px;
+			margin-top: 10px;
+		}
+		.success {
+			background: #e8f5e9;
+			color: #2e7d32;
+			padding: 10px;
+			border-radius: 4px;
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>💰 Платформа заявок на входящие деньги</h1>
+	</header>
+
+	<div class="form-section">
+		<h2>Создать заявку</h2>
+		<div class="form-group">
+			<label for="amount">Сумма:</label>
+			<input type="text" id="amount" placeholder="1234,56" />
+		</div>
+		<button class="btn-primary" onclick="createDeal()">Создать заявку</button>
+		<div id="createMessage"></div>
+	</div>
+
+	<div class="deals-list">
+		<h2>Заявки</h2>
+		<div id="dealsContainer">Загрузка...</div>
+	</div>
+
+	<script>
+		const API_BASE = '/api'
+
+		// Create deal
+		async function createDeal() {
+			const amount = document.getElementById('amount').value.trim()
+			const msgEl = document.getElementById('createMessage')
+			if (!amount) {
+				msgEl.innerHTML = '<div class="error">Введите сумму</div>'
+				return
+			}
+			try {
+				const res = await fetch(`${API_BASE}/deal`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ amount })
+				})
+				const data = await res.json()
+				if (res.ok) {
+					msgEl.innerHTML = '<div class="success">Заявка создана!</div>'
+					document.getElementById('amount').value = ''
+					loadDeals()
+				} else {
+					msgEl.innerHTML = `<div class="error">Ошибка: ${data.error}</div>`
+				}
+			} catch (err) {
+				msgEl.innerHTML = `<div class="error">Ошибка: ${err.message}</div>`
+			}
+		}
+
+		// Close deal
+		async function closeDeal(id) {
+			try {
+				const res = await fetch(`${API_BASE}/deal/${id}/close`, { method: 'POST' })
+				const data = await res.json()
+				if (res.ok) {
+					loadDeals()
+				} else {
+					alert(`Ошибка: ${data.error}`)
+				}
+			} catch (err) {
+				alert(`Ошибка: ${err.message}`)
+			}
+		}
+
+		// Reject deal
+		async function rejectDeal(id) {
+			if (!confirm('Отклонить заявку?')) return
+			try {
+				const res = await fetch(`${API_BASE}/deal/${id}/reject`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ reason: 'manual' })
+				})
+				const data = await res.json()
+				if (res.ok) {
+					loadDeals()
+				} else {
+					alert(`Ошибка: ${data.error}`)
+				}
+			} catch (err) {
+				alert(`Ошибка: ${err.message}`)
+			}
+		}
+
+		// Load deals
+		async function loadDeals() {
+			try {
+				const res = await fetch(`${API_BASE}/deals`)
+				const data = await res.json()
+				if (res.ok) {
+					renderDeals(data.deals || [])
+				}
+			} catch (err) {
+				document.getElementById('dealsContainer').innerHTML = `<div class="error">Ошибка загрузки: ${err.message}</div>`
+			}
+		}
+
+		// Render deals
+		function renderDeals(deals) {
+			const container = document.getElementById('dealsContainer')
+			if (deals.length === 0) {
+				container.innerHTML = '<p>Заявок нет</p>'
+				return
+			}
+			// Sort: pending first, then by date desc
+			deals.sort((a, b) => {
+				if (a.status === 'pending' && b.status !== 'pending') return -1
+				if (a.status !== 'pending' && b.status === 'pending') return 1
+				return new Date(b.createdAt) - new Date(a.createdAt)
+			})
+			container.innerHTML = deals.map(deal => {
+				const createdAt = new Date(deal.createdAt).toLocaleString('ru-RU')
+				const timeLeft = deal.status === 'pending' ? getTimeLeft(deal.createdAt) : null
+				let matchInfo = ''
+				if (deal.match) {
+					matchInfo = `<div class="deal-meta">✅ Совпадение: ${deal.match.title || 'N/A'}</div>`
+				}
+				let actions = ''
+				if (deal.status === 'pending') {
+					actions = `
+						<div class="deal-actions">
+							<button class="btn-success btn-small" onclick="closeDeal('${deal.id}')">Закрыть</button>
+							<button class="btn-danger btn-small" onclick="rejectDeal('${deal.id}')">Отклонить</button>
+							${timeLeft ? `<span class="timer">⏱ Осталось: ${timeLeft}</span>` : ''}
+						</div>
+					`
+				}
+				return `
+					<div class="deal-item ${deal.status}">
+						<div class="deal-header">
+							<span class="deal-id">#${deal.id}</span>
+							<span class="status-badge status-${deal.status}">${getStatusText(deal.status)}</span>
+						</div>
+						<div class="deal-amount">${deal.amount}</div>
+						<div class="deal-meta">Создано: ${createdAt}</div>
+						${deal.confirmedAt ? `<div class="deal-meta">Подтверждено: ${new Date(deal.confirmedAt).toLocaleString('ru-RU')}</div>` : ''}
+						${deal.rejectedAt ? `<div class="deal-meta">Отклонено: ${new Date(deal.rejectedAt).toLocaleString('ru-RU')} (${deal.reason || 'manual'})</div>` : ''}
+						${matchInfo}
+						${actions}
+					</div>
+				`
+			}).join('')
+		}
+
+		// Get status text
+		function getStatusText(status) {
+			const map = {
+				pending: 'Ожидание',
+				confirmed: 'Подтверждено',
+				rejected: 'Отклонено'
+			}
+			return map[status] || status
+		}
+
+		// Get time left until auto-reject (15 minutes)
+		function getTimeLeft(createdAt) {
+			const created = new Date(createdAt)
+			const now = new Date()
+			const elapsed = now - created
+			const total = 15 * 60 * 1000
+			const left = total - elapsed
+			if (left <= 0) return '0:00'
+			const minutes = Math.floor(left / 60000)
+			const seconds = Math.floor((left % 60000) / 1000)
+			return `${minutes}:${seconds.toString().padStart(2, '0')}`
+		}
+
+		// Auto-refresh every 5 seconds
+		setInterval(loadDeals, 5000)
+		// Initial load
+		loadDeals()
+
+		// Enter key to create deal
+		document.getElementById('amount').addEventListener('keypress', (e) => {
+			if (e.key === 'Enter') createDeal()
+		})
+	</script>
+</body>
+</html>
+
