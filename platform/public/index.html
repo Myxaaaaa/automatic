@@ -326,7 +326,52 @@
 		</section>
 	</main>
 
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-HkRbX8pDM6wHUwg2BCfVx2rdZ8raFMvx6bMpiKFFitvolSF/GpNZgbf+168Q5Q0SYJq0QAdzTZziM8r4xPp4Pw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+	<!-- QRCode library - используем несколько CDN для надежности -->
+	<script>
+		// Функция для загрузки QRCode библиотеки
+		function loadQRCodeLibrary(callback) {
+			if (typeof QRCode !== 'undefined') {
+				callback()
+				return
+			}
+			
+			const scripts = [
+				'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+				'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+			]
+			
+			let scriptIndex = 0
+			
+			function tryLoadScript() {
+				if (scriptIndex >= scripts.length) {
+					console.error('Failed to load QRCode library from all CDNs')
+					callback(false)
+					return
+				}
+				
+				const script = document.createElement('script')
+				script.src = scripts[scriptIndex]
+				script.crossOrigin = 'anonymous'
+				script.onload = function() {
+					if (typeof QRCode !== 'undefined') {
+						console.log('QRCode library loaded successfully')
+						callback(true)
+					} else {
+						scriptIndex++
+						tryLoadScript()
+					}
+				}
+				script.onerror = function() {
+					console.warn('Failed to load QRCode from', scripts[scriptIndex])
+					scriptIndex++
+					tryLoadScript()
+				}
+				document.head.appendChild(script)
+			}
+			
+			tryLoadScript()
+		}
+	</script>
 	<script>
 		const API_BASE = '/api'
 		const state = {
@@ -506,16 +551,35 @@
 					}
 					const qrArea = document.getElementById(`qr-${deviceId}`)
 					const holder = qrArea.querySelector('.qr-holder')
-					holder.innerHTML = ''
-					new QRCode(holder, {
-						text: JSON.stringify(payload),
-						width: 180,
-						height: 180,
-						colorDark: '#1f2937',
-						colorLight: '#ffffff'
+					holder.innerHTML = '<p>Загрузка...</p>'
+					
+					// Загружаем библиотеку QRCode и генерируем QR
+					loadQRCodeLibrary(function(success) {
+						if (!success || typeof QRCode === 'undefined') {
+							holder.innerHTML = '<p style="color:red; padding:10px;">Ошибка: не удалось загрузить библиотеку QRCode.</p>'
+							qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+							qrArea.classList.add('active')
+							return
+						}
+						
+						holder.innerHTML = ''
+						try {
+							new QRCode(holder, {
+								text: JSON.stringify(payload),
+								width: 180,
+								height: 180,
+								colorDark: '#1f2937',
+								colorLight: '#ffffff'
+							})
+							qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+							qrArea.classList.add('active')
+						} catch (err) {
+							console.error('Error generating QR code:', err)
+							holder.innerHTML = '<p style="color:red; padding:10px;">Ошибка генерации QR: ' + err.message + '</p>'
+							qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+							qrArea.classList.add('active')
+						}
 					})
-					qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
-					qrArea.classList.add('active')
 				}
 			} catch (err) {
 				alert(err.message)
@@ -671,16 +735,35 @@
 			}
 			const qrArea = document.getElementById('connectQrArea')
 			const holder = qrArea.querySelector('.qr-holder')
-			holder.innerHTML = ''
-			new QRCode(holder, {
-				text: JSON.stringify(payload),
-				width: 200,
-				height: 200,
-				colorDark: '#1f2937',
-				colorLight: '#ffffff'
+			holder.innerHTML = '<p>Загрузка...</p>'
+			
+			// Загружаем библиотеку QRCode и генерируем QR
+			loadQRCodeLibrary(function(success) {
+				if (!success || typeof QRCode === 'undefined') {
+					holder.innerHTML = '<p style="color:red; padding:20px;">Ошибка: не удалось загрузить библиотеку QRCode. Проверьте подключение к интернету и обновите страницу.</p><p style="margin-top:10px;">Вы можете скопировать JSON ниже и использовать его вручную:</p>'
+					qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+					qrArea.classList.add('active')
+					return
+				}
+				
+				holder.innerHTML = ''
+				try {
+					new QRCode(holder, {
+						text: JSON.stringify(payload),
+						width: 200,
+						height: 200,
+						colorDark: '#1f2937',
+						colorLight: '#ffffff'
+					})
+					qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+					qrArea.classList.add('active')
+				} catch (err) {
+					console.error('Error generating QR code:', err)
+					holder.innerHTML = '<p style="color:red; padding:20px;">Ошибка генерации QR: ' + err.message + '</p>'
+					qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
+					qrArea.classList.add('active')
+				}
 			})
-			qrArea.querySelector('pre').textContent = JSON.stringify(payload, null, 2)
-			qrArea.classList.add('active')
 		})
 		document.querySelectorAll('[data-copy-target]').forEach(btn => {
 			btn.addEventListener('click', () => {
