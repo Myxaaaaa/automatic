@@ -1,6 +1,6 @@
 # Logs
-logs
 *.log
+!android-notify/app/src/main/java/com/example/notifyforwarder/ui/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

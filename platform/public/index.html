@@ -265,11 +265,7 @@
 						<input type="text" id="accountNumber" placeholder="40817810..." />
 					</div>
 				</div>
-				<div style="margin-top:16px;">
-					<label for="accountTemplate">Шаблон ссылки на оплату</label>
-					<textarea id="accountTemplate" placeholder="https://mbank.example/pay?account={accountNumber}&amount={amount}&deal={dealId}"></textarea>
-					<p class="small-text">Доступные плейсхолдеры: <code>{amount}</code>, <code>{dealId}</code>, <code>{accountNumber}</code>. Сумма автоматически заменяет запятую на точку.</p>
-				</div>
+				<p class="small-text" style="margin-top:12px;">Шаблон ссылки для М-Банка настроен автоматически: <code>mbank://transfer?amount={amount}&to={accountNumber}&comment={dealId}</code></p>
 				<div style="margin-top:18px; display:flex; gap:12px; align-items:center; flex-wrap: wrap;">
 					<button class="primary" id="btnAddAccount">Сохранить реквизиты</button>
 					<div id="accountMessage"></div>
@@ -418,7 +414,7 @@
 						<span class="badge">ID ${account.id}</span>
 					</div>
 					<p class="small-text">Банк: ${account.bank || '—'} · Номер: ${account.number || '—'}</p>
-					<p class="small-text">Шаблон: <code>${account.paymentTemplate}</code></p>
+					<p class="small-text">Используется шаблон М-Банка: <code>mbank://transfer?amount={amount}&to={accountNumber}&comment={dealId}</code></p>
 				</div>
 			`).join('')
 		}
@@ -639,16 +635,14 @@
 				const name = document.getElementById('accountName').value.trim()
 				const bank = document.getElementById('accountBank').value.trim()
 				const number = document.getElementById('accountNumber').value.trim()
-				const paymentTemplate = document.getElementById('accountTemplate').value.trim()
 				await api(`${API_BASE}/account`, {
 					method: 'POST',
-					body: JSON.stringify({ name, bank, number, paymentTemplate })
+					body: JSON.stringify({ name, bank, number })
 				})
 				setMessage('accountMessage', 'success', 'Реквизиты сохранены')
 				document.getElementById('accountName').value = ''
 				document.getElementById('accountBank').value = ''
 				document.getElementById('accountNumber').value = ''
-				document.getElementById('accountTemplate').value = ''
 				await loadAccounts()
 			} catch (err) {
 				setMessage('accountMessage', 'error', err.message)

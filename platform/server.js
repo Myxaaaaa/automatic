@@ -19,7 +19,8 @@ app.use(morgan('dev'))
 const PORT = process.env.PORT || 3001
 const SECRET = process.env.SECRET || 'test-secret'
 const AUTO_REJECT_MINUTES = parseInt(process.env.AUTO_REJECT_MINUTES || '15', 10)
-const DEFAULT_PAYMENT_TEMPLATE = process.env.DEFAULT_PAYMENT_TEMPLATE || 'https://mbank.example/pay?account={accountNumber}&amount={amount}&deal={dealId}'
+// Встроенный шаблон для М-Банка (можно переопределить через .env)
+const MBANK_PAYMENT_TEMPLATE = process.env.MBANK_PAYMENT_TEMPLATE || 'mbank://transfer?amount={amount}&to={accountNumber}&comment={dealId}'
 
 // In-memory stores
 const deals = new Map()
@@ -61,11 +62,13 @@ function attachAccountInfo(entity, account) {
 }
 
 function buildPaymentLink(account, amount, dealId) {
-	const template = account.paymentTemplate || DEFAULT_PAYMENT_TEMPLATE
+	// Используем встроенный шаблон М-Банка
+	const template = MBANK_PAYMENT_TEMPLATE
 	return template
 		.replace(/\{amount\}/g, encodeAmountForLink(amount))
 		.replace(/\{dealId\}/g, encodeURIComponent(dealId))
 		.replace(/\{accountNumber\}/g, encodeURIComponent(account.number || ''))
+		.replace(/\{comment\}/g, encodeURIComponent(dealId))
 }
 
 function scheduleAutoReject(dealId) {
@@ -157,7 +160,6 @@ app.post('/api/account', (req, res) => {
 	const name = normalizeText(req.body?.name)
 	const bank = normalizeText(req.body?.bank)
 	const number = normalizeText(req.body?.number)
-	const paymentTemplate = normalizeText(req.body?.paymentTemplate) || DEFAULT_PAYMENT_TEMPLATE
 
 	if (!name) {
 		return res.status(400).json({ error: 'Название реквизита обязательно' })
@@ -169,7 +171,6 @@ app.post('/api/account', (req, res) => {
 		name,
 		bank,
 		number,
-		paymentTemplate,
 		createdAt: nowIso()
 	}
 	account.label = composeAccountLabel(account)
