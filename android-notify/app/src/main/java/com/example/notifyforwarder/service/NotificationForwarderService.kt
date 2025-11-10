@@ -27,6 +27,10 @@ import java.util.UUID
 
 class NotificationForwarderService : NotificationListenerService() {
 
+	companion object {
+		private const val TAG = "NotifForwarderService"
+	}
+
 	override fun onListenerConnected() {
 		Log.i(TAG, "Notification listener connected")
 	}
@@ -183,8 +187,6 @@ class NotificationForwarderService : NotificationListenerService() {
 	}
 
 	companion object {
-		private const val TAG = "NotifForwarderService"
-
 		fun hasNotificationAccess(context: Context): Boolean {
 			val cn = ComponentName(context, NotificationForwarderService::class.java)
 			val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
