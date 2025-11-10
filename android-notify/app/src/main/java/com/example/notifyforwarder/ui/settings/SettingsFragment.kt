@@ -14,8 +14,6 @@ import com.example.notifyforwarder.prefs.AppPreferences
 import com.example.notifyforwarder.service.NotificationForwarderService
 import com.example.notifyforwarder.ui.ScanQrActivity
 import com.example.notifyforwarder.ui.adapter.AppListAdapter
-import com.google.android.material.card.MaterialCardView
-import com.google.android.material.switchmaterial.SwitchMaterial
 
 class SettingsFragment : Fragment() {
 	private var _binding: FragmentSettingsBinding? = null
